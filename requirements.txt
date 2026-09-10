@@ -1,0 +1,10 @@
+PySide6==6.11.0
+Pillow==12.1.1
+httpx==0.28.1
+# Official CPU wheels verified available for this Windows x64 / CPython 3.13 environment.
+paddleocr==3.7.0
+paddlepaddle==3.3.1
+# Standalone Windows libraries, linked by the upstream tesserocr installation guide.
+tesserocr @ https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.10.0-tesseract-5.5.2/tesserocr-2.10.0-cp311-cp311-win_amd64.whl#sha256=02f75202a13804dacaac111cc4375cdb7b0194217f7f36add30cbb57c37c002c ; sys_platform == 'win32' and python_version == '3.11'
+tesserocr @ https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.10.0-tesseract-5.5.2/tesserocr-2.10.0-cp312-cp312-win_amd64.whl#sha256=e05d41a2b0e6f38f3a5195d05a73674d72152a775d1b8ebe481ca9306f94d27a ; sys_platform == 'win32' and python_version == '3.12'
+tesserocr @ https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.10.0-tesseract-5.5.2/tesserocr-2.10.0-cp313-cp313-win_amd64.whl#sha256=a7f1a56f2c70095d108304e2e76fd6aebd06a42712cb87b8976d52d1e7faf6d8 ; sys_platform == 'win32' and python_version == '3.13'
