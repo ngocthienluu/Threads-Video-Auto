@@ -128,3 +128,14 @@ Next: User chooses gameplay, prepares current audio for every comment, optionall
 
 ## 2026-09-14 - Browse start folders
 Media Browse now opens assets/backgrounds, assets/music or assets/fonts when no current path is available; otherwise it opens the existing selected file parent directory. Removes empty dialog start directory that could inherit the previous screenshot input folder. Verified all three defaults, selected-parent and cancel behavior using mocked dialogs; 22 UI tests and offscreen startup pass. Native dialog acceptance remains untested.
+
+## Visual editor migration plan (2026-09-14)
+A: Resizable dark editor shell, scene cards, tabbed inspector/project settings.
+B: Persisted EditorObject contract and QGraphics canvas with comment/watermark movement.
+C: Aspect-preserving handles, inspector/layers binding, visibility/lock/z-order and undo.
+D: Separate multi-track timeline with ruler/playhead/zoom using measured timings.
+E: Scrub/selection/persistence synchronization; AUTO timings stay non-draggable.
+F: Renderer reads the same logical transforms; real render regression and final documentation.
+Each phase gets relevant tests, offscreen app startup, dated progress and a separate local commit. No live TTS calls or automatic GitHub push. Realtime gameplay playback, trim/split/manual clip timing and keyframes remain future scope.
+
+- [x] Phase A: resizable dark shell, scene thumbnails/filter, inspector/layers hosts and compact Project sections. Validation: 22 UI tests pass; offscreen app smoke exits 0. Functional object bindings follow in B/C.

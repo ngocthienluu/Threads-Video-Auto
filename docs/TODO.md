@@ -121,3 +121,14 @@
 - [ ] Add composed playback preview and missing-media relink UI.
 
 - [x] Fix media Browse default folders and retain current-file parent; verify dialog arguments, 22 UI tests and offscreen startup (2026-09-14).
+
+## Visual editor migration plan (2026-09-14)
+A: Resizable dark editor shell, scene cards, tabbed inspector/project settings.
+B: Persisted EditorObject contract and QGraphics canvas with comment/watermark movement.
+C: Aspect-preserving handles, inspector/layers binding, visibility/lock/z-order and undo.
+D: Separate multi-track timeline with ruler/playhead/zoom using measured timings.
+E: Scrub/selection/persistence synchronization; AUTO timings stay non-draggable.
+F: Renderer reads the same logical transforms; real render regression and final documentation.
+Each phase gets relevant tests, offscreen app startup, dated progress and a separate local commit. No live TTS calls or automatic GitHub push. Realtime gameplay playback, trim/split/manual clip timing and keyframes remain future scope.
+
+- [x] Phase A: resizable dark shell, scene thumbnails/filter, inspector/layers hosts and compact Project sections. Validation: 22 UI tests pass; offscreen app smoke exits 0. Functional object bindings follow in B/C.

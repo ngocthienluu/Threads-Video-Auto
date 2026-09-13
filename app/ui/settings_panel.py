@@ -1,7 +1,7 @@
 from pathlib import Path
 from app.core.config import ROOT
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QComboBox, QGroupBox, QLabel, QVBoxLayout, QWidget, QFormLayout, QLineEdit, QPushButton, QFileDialog, QCheckBox, QDoubleSpinBox, QSpinBox
+from PySide6.QtWidgets import QComboBox, QGroupBox, QLabel, QVBoxLayout, QWidget, QFormLayout, QLineEdit, QPushButton, QFileDialog, QCheckBox, QDoubleSpinBox, QSpinBox, QToolBox
 from app.core.models import Project
 
 
@@ -25,13 +25,15 @@ class SettingsPanel(QWidget):
         hint = QLabel("Chọn engine rồi bấm READ IMAGE để đọc lại ảnh.")
         hint.setWordWrap(True)
         ocr_layout.addWidget(hint)
-        layout.addWidget(ocr_box)
+        self.sections = QToolBox()
+        layout.addWidget(self.sections)
+        self.sections.addItem(ocr_box,"OCR")
         self.controls = {}
         self.labels = {}
         def section(title):
             box = QGroupBox(title)
             form = QFormLayout(box)
-            layout.addWidget(box)
+            self.sections.addItem(box,title)
             return form
         def field(form, group, key, title, kind, minimum=0, maximum=1):
             if kind == "file":

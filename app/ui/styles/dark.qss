@@ -1,0 +1,20 @@
+QWidget { background: #11151e; color: #e2e8f4; font-family: "Segoe UI"; font-size: 12px; }
+QMainWindow, QDialog { background: #0c1018; }
+QPushButton { background: #242d40; border: 1px solid #34405a; border-radius: 5px; padding: 6px 10px; min-height: 20px; }
+QPushButton:hover { background: #324265; border-color: #619bff; }
+QPushButton:disabled { color: #647089; background: #19202d; }
+QLineEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox, QComboBox { background: #1a2231; border: 1px solid #34405a; border-radius: 4px; padding: 5px; selection-background-color: #375aaa; }
+QTabWidget::pane { border: 1px solid #263247; }
+QTabBar::tab { background: #192131; color: #9faec5; padding: 8px 12px; }
+QTabBar::tab:selected { background: #263752; color: #ffffff; border-bottom: 2px solid #669aff; }
+QTreeWidget, QListWidget { background: #141c29; border: none; outline: none; }
+QTreeWidget::item { padding: 7px; border-bottom: 1px solid #283347; }
+QTreeWidget::item:selected { background: #253f68; color: white; }
+QGroupBox { border: 1px solid #2b374d; border-radius: 6px; margin-top: 14px; padding-top: 12px; }
+QGroupBox::title { subcontrol-origin: margin; padding: 0 7px; color: #aabcda; }
+QSplitter::handle { background: #263247; }
+QScrollBar { background: #141b28; width: 10px; height: 10px; }
+QScrollBar::handle { background: #3a4a65; border-radius: 4px; min-height: 20px; min-width: 20px; }
+QStatusBar { background: #0b1019; color: #9faec5; }
+QCheckBox { spacing: 6px; padding: 3px; }
+QToolBox::tab { background: #202b3d; padding: 8px; border-radius: 4px; }
