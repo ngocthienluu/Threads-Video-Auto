@@ -1,10 +1,13 @@
+from pathlib import Path
+from app.core.config import ROOT
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QComboBox, QGroupBox, QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QComboBox, QGroupBox, QLabel, QVBoxLayout, QWidget, QFormLayout, QLineEdit, QPushButton, QFileDialog, QCheckBox, QDoubleSpinBox, QSpinBox
 from app.core.models import Project
 
 
 class SettingsPanel(QWidget):
     ocr_engine_changed = Signal(str)
+    settings_changed = Signal(str, str, object)
 
     def __init__(self):
         super().__init__()
@@ -23,14 +26,65 @@ class SettingsPanel(QWidget):
         hint.setWordWrap(True)
         ocr_layout.addWidget(hint)
         layout.addWidget(ocr_box)
+        self.controls = {}
         self.labels = {}
-        for title in ("Background", "Music", "Watermark", "Video settings", "Presets"):
+        def section(title):
             box = QGroupBox(title)
-            content = QVBoxLayout(box)
-            self.labels[title] = QLabel()
-            self.labels[title].setWordWrap(True)
-            content.addWidget(self.labels[title])
+            form = QFormLayout(box)
             layout.addWidget(box)
+            return form
+        def field(form, group, key, title, kind, minimum=0, maximum=1):
+            if kind == "file":
+                control = QLineEdit()
+                control.setPlaceholderText("Choose a local file")
+                button = QPushButton("Browse...")
+                button.clicked.connect(lambda: self.pick(group, key))
+                form.addRow(title, control); form.addRow("", button)
+                control.editingFinished.connect(lambda: self.settings_changed.emit(group,key,control.text().strip()))
+            elif kind == "bool":
+                control = QCheckBox(title)
+                form.addRow("",control)
+                control.toggled.connect(lambda value: self.settings_changed.emit(group,key,value))
+            elif kind == "text":
+                control = QLineEdit()
+                form.addRow(title,control)
+                control.editingFinished.connect(lambda: self.settings_changed.emit(group,key,control.text()))
+            else:
+                control = QSpinBox() if kind == "int" else QDoubleSpinBox()
+                control.setRange(minimum,maximum)
+                if kind != "int":control.setSingleStep(.05)
+                form.addRow(title,control)
+                control.valueChanged.connect(lambda value: self.settings_changed.emit(group,key,value))
+            self.controls[group,key] = control
+        bg = section("Gameplay")
+        field(bg,"background_settings","file","Video","file")
+        field(bg,"background_settings","loop","Loop gameplay","bool")
+        field(bg,"background_settings","random_start","Random starting point","bool")
+        field(bg,"background_settings","volume","Volume (0 = muted)","float")
+        music = section("Music (optional)")
+        field(music,"music_settings","enabled","Enable music","bool")
+        field(music,"music_settings","file","Audio","file")
+        field(music,"music_settings","volume","Volume","float")
+        field(music,"music_settings","loop","Loop music","bool")
+        field(music,"music_settings","random_start","Random starting point","bool")
+        field(music,"music_settings","fade_in","Fade in (seconds)","float",0,10)
+        field(music,"music_settings","fade_out","Fade out (seconds)","float",0,10)
+        mark = section("Watermark")
+        field(mark,"watermark_settings","enabled","Enable watermark","bool")
+        field(mark,"watermark_settings","text","Text","text")
+        field(mark,"watermark_settings","size","Size","int",8,200)
+        field(mark,"watermark_settings","opacity","Opacity","float")
+        field(mark,"watermark_settings","y","Top margin (px)","int",0,1920)
+        field(mark,"watermark_settings","font","Font (optional)","file")
+        video = section("Video / screenshot")
+        self.video_info = QLabel()
+        video.addRow(self.video_info)
+        field(video,"video_settings","comment_max_width_ratio","Image width ratio","float",.1,1)
+        field(video,"video_settings","comment_y_ratio","Image center Y","float",0,1)
+        timing = section("Narration timing")
+        field(timing,"timing_settings","voice_pre_padding","Before voice (s)","float",0,5)
+        field(timing,"timing_settings","voice_post_padding","After voice (s)","float",0,5)
+        field(timing,"timing_settings","scene_gap","Scene gap (s)","float",0,5)
         layout.addStretch()
 
     def set_ocr_engine(self, name):
@@ -38,10 +92,27 @@ class SettingsPanel(QWidget):
         self.ocr_engine.setCurrentIndex(self.ocr_engine.findData(name))
         self.ocr_engine.blockSignals(False)
 
+    def pick(self, group, key):
+        filter_text = "Video (*.mp4 *.mov *.mkv *.webm *.avi)" if group == "background_settings" else "Fonts (*.ttf *.otf)" if key == "font" else "Audio (*.mp3 *.wav *.m4a *.ogg *.flac)"
+        folder = "backgrounds" if group == "background_settings" else "fonts" if key == "font" else "music"
+        initial = ROOT / "assets" / folder
+        current = self.controls[group, key].text().strip()
+        if current:
+            candidate = Path(current).expanduser()
+            if candidate.is_absolute() and candidate.parent.is_dir():
+                initial = candidate.parent
+        path, _ = QFileDialog.getOpenFileName(self, "Choose media", str(initial), filter_text)
+        if path:
+            self.controls[group,key].setText(path)
+            self.settings_changed.emit(group,key,path)
+
     def set_project(self, project: Project):
-        self.labels["Background"].setText("Continuous gameplay\nSelection / loop: coming in V1")
-        self.labels["Music"].setText(f"Default volume: {project.music_settings.volume:.0%}\nMixing: not implemented")
-        self.labels["Watermark"].setText(f"{project.watermark_settings.text}\nComposition: not implemented")
         v = project.video_settings
-        self.labels["Video settings"].setText(f"{v.width} × {v.height} · {v.fps} fps\nMP4 / H.264 / AAC (target)\nSettings read-only this iteration")
-        self.labels["Presets"].setText("Reserved for V2")
+        self.video_info.setText(f"{v.width} x {v.height} / {v.fps} fps / MP4 H.264 + AAC")
+        for (group,key), control in self.controls.items():
+            control.blockSignals(True)
+            value = getattr(getattr(project,group),key)
+            if isinstance(control,QCheckBox):control.setChecked(value)
+            elif isinstance(control,QLineEdit):control.setText(value)
+            else:control.setValue(value)
+            control.blockSignals(False)

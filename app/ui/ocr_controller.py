@@ -40,6 +40,8 @@ class OCRController(QObject):
 
     def start(self, force=False, all_items=False):
         w = self.window
+        if getattr(w, "render_controller", None) and w.render_controller.busy:
+            return
         if self.busy or (hasattr(w, "tts_controller") and w.tts_controller.busy):
             return
         if all_items:

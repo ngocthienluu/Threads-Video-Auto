@@ -1,10 +1,10 @@
-"""Discovery only; media probing/encoding is deliberately deferred."""
-from shutil import which
+"""Discover PATH or project-local FFmpeg tools."""
+from app.renderer.media import executable, RenderError
 
+def ffmpeg_available():
+    try:executable("ffmpeg");return True
+    except RenderError:return False
 
-def ffmpeg_available() -> bool:
-    return which("ffmpeg") is not None
-
-
-def ffprobe_available() -> bool:
-    return which("ffprobe") is not None
+def ffprobe_available():
+    try:executable("ffprobe");return True
+    except RenderError:return False

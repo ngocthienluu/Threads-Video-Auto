@@ -87,6 +87,8 @@ class TTSController(QObject):
 
     def start(self, voices=False, test=False, regenerate=False):
         w = self.window
+        if getattr(w, "render_controller", None) and w.render_controller.busy:
+            return
         if self.busy or w.ocr_controller.busy:
             return
         if self.config_error:

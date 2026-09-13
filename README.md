@@ -1,5 +1,15 @@
 # Threads Video Studio
 
+## Xuất video MP4
+
+1. Chuẩn bị audio cho **tất cả comment**; item còn pending/error phải Generate Voice trước.
+2. Bên phải, **Gameplay → Browse** chọn video nền. Loop bật mặc định; Volume = 0 để tắt tiếng gameplay.
+3. Tùy chọn bật **Music**, chọn nhạc; chỉnh watermark, kích thước/vị trí ảnh và khoảng nghỉ.
+4. Bấm **EXPORT**, chọn file `.mp4` (mặc định trong `output/`). Có **Cancel Export**; hủy/lỗi giữ nguyên bản xuất cũ.
+
+Xuất video dùng FFmpeg cục bộ, không gọi API TTS. Mặc định 1080×1920, 30 fps, H.264/AAC. PREVIEW hiện vẫn là ảnh tĩnh; mở MP4 bằng trình phát video để xem kết quả đầy đủ.
+
+
 ## Tạo giọng đọc
 
 1. Dùng **Tesseract**, đọc ảnh rồi kiểm tra **TTS Text** (reply chỉ giữ phần lời mới).
@@ -33,9 +43,9 @@ Cache nằm ở `cache/tts/`, phân biệt text, giọng, tốc độ, model và
 
 Text rỗng hoặc OCR/reply chưa chắc chắn bị chặn; kiểm tra và chỉnh TTS Text để đánh dấu đã sửa tay. Tạo giọng không ghi đè text đã sửa.
 
-Ứng dụng desktop Windows tạo video dọc từ screenshot bình luận, gameplay và giọng đọc. **Hiện tại:** Tesseract là OCR mặc định; app tách comment/reply, chuẩn bị TTS Text và tích hợp tạo giọng ElevenLabs, cache audio và timeline theo thời lượng ffprobe. Export video chưa được triển khai.
+Ứng dụng desktop Windows tạo video dọc từ screenshot bình luận, gameplay và giọng đọc. **Hiện tại:** Tesseract là OCR mặc định; app tách comment/reply, chuẩn bị TTS Text và tích hợp tạo giọng ElevenLabs, cache audio và timeline theo thời lượng ffprobe. EXPORT MP4 đã được triển khai với gameplay, nhạc và watermark.
 
-Đã kiểm chứng: **98 tests pass**, gồm OCR thật, UI offscreen, TTS qua HTTP giả lập, cache và ffprobe đo WAV/MP3 thật. **Chưa gọi ElevenLabs thật hoặc nghe đánh giá giọng:** cần API key/voice của bạn. FFmpeg/ffprobe đã cài cục bộ ở `tools/ffmpeg/bin/`, không sửa PATH hệ thống. Preview video vẫn là ảnh tĩnh.
+Đã kiểm chứng: **113 tests pass**, gồm OCR thật, UI offscreen, TTS qua HTTP giả lập, cache và ffprobe đo WAV/MP3 thật. **Chưa gọi ElevenLabs thật hoặc nghe đánh giá giọng:** cần API key/voice của bạn. FFmpeg/ffprobe đã cài cục bộ ở `tools/ffmpeg/bin/`, không sửa PATH hệ thống. Preview video vẫn là ảnh tĩnh.
 
 ## Cài đặt
 
@@ -69,14 +79,14 @@ Nếu có project lưu ở nơi khác từ trước, dùng **Thêm project ở n
 - **Advanced / Show raw OCR** chứa raw text chỉ đọc, method/warnings, **Manual Selection → TTS**, Clean và **Re-run extraction**. Re-run cho phép thay body thủ công của item đang chọn nhưng vẫn giữ TTS thủ công. Muốn thay TTS thủ công bằng Clean/Selection phải bật checkbox cho phép riêng.
 - Trong lúc xử lý, editor/project tạm khóa; **Cancel OCR** vẫn hoạt động. Đóng cửa sổ hủy tác vụ rồi hỏi lưu. Khi hủy batch, kết quả đã hoàn thành vẫn được giữ; lời tự động phụ thuộc có thể được tính lại. Text thủ công luôn được giữ.
 - Save/Open lưu JSON UTF-8 có version và đường dẫn tương đối với file dự án khi cùng ổ đĩa. Giữ các file media bên ngoài; ứng dụng báo khi chúng bị thiếu.
-- PREVIEW hiển thị ảnh trong khung dọc, chưa có gameplay/âm thanh/playhead. EXPORT vẫn bị vô hiệu hóa. Generate Voice tạo audio cho item đang chọn; Open generated audio mở file bằng trình nghe mặc định.
+- PREVIEW remains a static screenshot view. EXPORT writes composed MP4 with gameplay, screenshots, narration, optional music and watermark.
 - Delete/Move Up/Move Down thao tác trên dòng được chọn. App hỏi lưu trước khi đóng hoặc mở dự án khác nếu có thay đổi.
 
 ## Media và render tương lai
 
 Đặt video ở `assets/backgrounds/`, nhạc ở `assets/music/`, meme ở `assets/memes/`, SFX ở `assets/sfx/`, font ở `assets/fonts/`. `input/comments/` là nơi tùy chọn để giữ screenshot; `projects/` chứa JSON; `output/` dành cho MP4. Cache và logs là dữ liệu runtime.
 
-Final render chưa có. Các phase sau cần FFmpeg và ffprobe trên PATH: cài bản Windows theo [trang tải FFmpeg](https://ffmpeg.org/download.html), thêm thư mục `bin` vào PATH, mở terminal mới và kiểm tra `ffmpeg -version`, `ffprobe -version`. ElevenLabs sẽ cần API key trong `.env` và voice ID.
+Final export uses local FFmpeg/ffprobe from tools/ffmpeg/bin or PATH. This machine has verified FFmpeg 9.0.1; see tools/ffmpeg/README.md for setup. FFMPEG_PATH/FFPROBE_PATH environment variables can override discovery.
 
 ## Kiểm thử và xử lý lỗi
 

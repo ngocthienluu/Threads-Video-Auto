@@ -25,3 +25,7 @@ Meme and SFX render; timeline editing; transitions; better preview; presets; dra
 ## V3
 
 AI meme/SFX suggestions; subtitles; batch generation; template library; advanced automation.
+
+
+## 2026-09-14 status
+V1 phases 3-6 now have selected-item voice generation/cache, measured timeline, media controls and final FFmpeg export. Mock TTS and actual local encode tests pass; live voice permissions and visible production acceptance are separate. Next are composed preview/missing-media recovery and end-to-end acceptance; batch voice generation remains pending.

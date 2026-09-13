@@ -12,6 +12,7 @@ from app.ui.scene_list import SceneList
 from app.ui.settings_panel import SettingsPanel
 from app.ui.ocr_controller import OCRController
 from app.ui.tts_controller import TTSController
+from app.ui.render_controller import RenderController
 from app.services.tts.cleanup import AudioCleanup, CleanupError
 from app.ui.audio_cleanup_dialog import AudioCleanupDialog
 from app.utils.files import IMAGE_FILTER, validate_image
@@ -35,12 +36,12 @@ class MainWindow(QMainWindow):
         self._button("Save As", lambda: self.save_project(save_as=True), toolbar)
         toolbar.addStretch()
         self.auto_button = self._button("AUTO GENERATE TEXT", lambda: self.ocr_controller.start(all_items=True), toolbar)
-        self.auto_button.setToolTip("OCR → detect comments → prepare TTS text for all items. Voice/render are not implemented.")
+        self.auto_button.setToolTip("OCR → detect comments → prepare TTS text for all items. Generate narration separately, then export MP4.")
         self._button("PREVIEW", self.preview_selected, toolbar)
-        self.export_button = self._button("EXPORT", None, toolbar)
-        self.export_button.setToolTip("FFmpeg rendering is not implemented yet")
+        self.export_button = self._button("EXPORT", lambda: self.render_controller.start(), toolbar)
+        self.export_button.setToolTip("Export gameplay, screenshots and existing narration to MP4")
         layout.addLayout(toolbar)
-        banner = QLabel("Threads OCR · ElevenLabs narration (API key + ffprobe required) · Video export is not available yet.")
+        banner = QLabel("Threads OCR · ElevenLabs narration (API key + ffprobe required) · MP4 export with gameplay, music and watermark.")
         banner.setWordWrap(True)
         layout.addWidget(banner)
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -90,6 +91,12 @@ class MainWindow(QMainWindow):
         self.cancel_tts_button.setEnabled(False)
         self.statusBar().addPermanentWidget(self.cancel_tts_button)
         self.tts_controller = TTSController(self)
+        self.cancel_render_button = QPushButton("Cancel Export")
+        self.cancel_render_button.setEnabled(False)
+        self.statusBar().addPermanentWidget(self.cancel_render_button)
+        self.render_controller = RenderController(self)
+        self.cancel_render_button.clicked.connect(self.render_controller.cancel)
+        self.settings.settings_changed.connect(self.edit_media_setting)
         self.audio_cleanup = AudioCleanup(self.tts_controller.service.settings.cache_dir, ROOT / "projects")
         self.menuBar().addMenu("Tools").addAction("Dọn audio thừa", self.clean_audio_cache)
         self.cancel_tts_button.clicked.connect(self.tts_controller.cancel)
@@ -289,6 +296,20 @@ class MainWindow(QMainWindow):
             except (OSError, ValueError) as exc:
                 self.error(exc)
 
+    def edit_media_setting(self, group, key, value):
+        settings = getattr(self.manager.project,group)
+        old = getattr(settings,key)
+        setattr(settings,key,value)
+        try:self.manager.project.validate()
+        except ValueError as exc:
+            setattr(settings,key,old)
+            self.settings.set_project(self.manager.project)
+            self.error(exc)
+            return
+        self.manager.changed()
+        self.preview.update()
+        self.update_title()
+
     def remember_project_audio(self):
         try:
             self.audio_cleanup.remember(self.manager.path)
@@ -296,12 +317,17 @@ class MainWindow(QMainWindow):
             self.error(exc)
 
     def clean_audio_cache(self):
-        if self.tts_controller.busy or self.ocr_controller.busy:
+        if self.tts_controller.busy or self.ocr_controller.busy or self.render_controller.busy:
             self.statusBar().showMessage("Đợi OCR/tạo giọng hoàn tất rồi dọn audio.")
             return
         AudioCleanupDialog(self, self.audio_cleanup, self.manager).exec()
 
     def closeEvent(self, event):
+        if self.render_controller.busy:
+            self.render_controller.close_when_finished = True
+            self.render_controller.cancel()
+            event.ignore()
+            return
         if self.tts_controller.busy:
             self.tts_controller.close_when_finished = True
             self.tts_controller.cancel()

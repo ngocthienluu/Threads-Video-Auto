@@ -60,7 +60,7 @@ class UITests(unittest.TestCase):
         self.assertEqual(item.tts_text, "hôm nay vui")
         self.assertFalse(self.window.preview.pixmap.isNull())
         self.assertTrue(self.window.auto_button.isEnabled())
-        self.assertFalse(self.window.export_button.isEnabled())
+        self.assertTrue(self.window.export_button.isEnabled())
 
     def test_thread_add_reorder_delete_and_roundtrip(self):
         self.window.import_paths([str(self.image)], "thread")
@@ -413,3 +413,36 @@ class UITests(unittest.TestCase):
         self.assertEqual(self.window.item.tts_status, "done")
         self.assertEqual(self.window.item.audio_path, str(path))
         self.assertEqual(self.window.item.timeline_status, "done")
+
+    def wait_render(self):
+        for _ in range(150):
+            if not self.window.render_controller.busy:return
+            QTest.qWait(20)
+        self.fail("Render worker did not finish")
+
+    def test_export_worker_error_cancel_and_settings_persistence(self):
+        from app.renderer.media import RenderError, RenderCancelled
+        self.window.import_paths([str(self.image)])
+        control=self.window.settings.controls["music_settings","volume"]
+        control.setValue(.12)
+        self.assertAlmostEqual(self.window.manager.project.music_settings.volume,.12)
+        self.assertTrue(self.window.manager.dirty)
+        self.window.manager.save(Path(self.temp.name)/"settings.json")
+        self.window.manager.load(Path(self.temp.name)/"settings.json")
+        self.assertAlmostEqual(self.window.manager.project.music_settings.volume,.12)
+        renderer=self.window.render_controller.renderer
+        with patch.object(renderer,"render",side_effect=RenderError("Missing gameplay")),patch.object(QMessageBox,"warning") as warning:
+            self.window.render_controller.start(output=Path(self.temp.name)/"out.mp4")
+            self.wait_render()
+        self.assertTrue(warning.called)
+        self.assertTrue(self.window.centralWidget().isEnabled())
+        def cancelled(project,output,progress,event,**kwargs):
+            event.wait(2)
+            raise RenderCancelled("cancelled")
+        with patch.object(renderer,"render",side_effect=cancelled),patch.object(QMessageBox,"warning") as warning:
+            self.window.render_controller.start(output=Path(self.temp.name)/"out.mp4")
+            self.assertFalse(self.window.centralWidget().isEnabled())
+            self.window.cancel_render_button.click()
+            self.wait_render()
+        self.assertFalse(warning.called)
+        self.assertTrue(self.window.menuBar().isEnabled())

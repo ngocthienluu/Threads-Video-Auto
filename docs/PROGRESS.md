@@ -1,8 +1,8 @@
 # Current Status
 
-Last updated: 2026-09-08
-Current phase: Iteration 3 / automatic content extraction and progressive text
-Current milestone: Automatic body/new-reply → TTS Text implemented and verified; no voice/render yet
+Last updated: 2026-09-14
+Current phase: V1 media settings and final MP4 export
+Current milestone: OCR, voice workflow and final MP4 export implemented; see latest dated entry for validation. Older sections below are historical.
 
 ## Completed
 
@@ -119,3 +119,12 @@ Validation: 98 tests pass, including HTTP mocks, metadata/cache parsing and writ
 ## 2026-09-10 - Unused audio cleanup
 Added Tools > audio cleanup, background preview/delete, preserved current unsaved/saved/shared references, external project registration on UI Save/Open and manual external additions. Only unreferenced generated MP3 cache files qualify; invalid/missing projects block deletion, changed/locked files are skipped. No automatic deletion or API requests. User confirmed project files are kept under projects/.
 Validation: 107 tests passed, including 7 service cleanup tests and 2 offscreen UI tests. Actual deletion was exercised only on temporary test fixtures: saved/shared/unsaved media, malformed/missing registry/project, newly referenced/modified files, outside-cache paths, permission failures, preview-before-delete and active voice-job guard. App smoke launch passed offscreen. User's real audio files were not deleted during development; use the in-app preview with the live current project. Visible desktop acceptance remains pending.
+
+
+## 2026-09-14 - Gameplay/music/watermark and MP4 export
+Implemented local file controls for gameplay/music/font, volume/loop/random start/fades, watermark text/size/opacity/margin, screenshot width/Y and narration padding/gap. EXPORT now renders existing narration and images over continuous gameplay with optional music and watermark, using cancellable FFmpeg in a worker. Actual audio is re-probed; output publication is atomic and guarded. Tesseract/TTS/manual text/cleanup behavior is retained. Static PREVIEW does not play the composed video.
+Validation: 113 tests pass, including five real FFmpeg renderer tests and an added offscreen export/settings test. Integration checks verify H.264/AAC, dimensions/duration, re-probed timing, image switches, silent default gameplay, looped footage, music/watermark encode, Thread progression, pixel comparison confirming gameplay continues through replies, preflight/stale input errors, active-process cancellation and prior-output preservation. App smoke launch and compileall pass. A 1080x1920 real test export (1.566667 seconds, 282159 bytes) is at output/export-validation-20260914.mp4; frame at cache/preview/export-validation-frame.png was visually inspected. This uses synthetic media/tones, not a claim of human listening acceptance or full-length production quality. No live ElevenLabs request was sent. Large-project scalability and visible desktop acceptance remain pending.
+Next: User chooses gameplay, prepares current audio for every comment, optionally enables music, then exports MP4. Later: composed preview/missing-media recovery and broader real-project acceptance.
+
+## 2026-09-14 - Browse start folders
+Media Browse now opens assets/backgrounds, assets/music or assets/fonts when no current path is available; otherwise it opens the existing selected file parent directory. Removes empty dialog start directory that could inherit the previous screenshot input folder. Verified all three defaults, selected-parent and cancel behavior using mocked dialogs; 22 UI tests and offscreen startup pass. Native dialog acceptance remains untested.

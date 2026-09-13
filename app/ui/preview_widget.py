@@ -33,5 +33,5 @@ class PreviewWidget(QWidget):
         else:
             scale = min(width * self.settings.comment_max_width_ratio / self.pixmap.width(), height * .9 / self.pixmap.height())
             w, h = self.pixmap.width() * scale, self.pixmap.height() * scale
-            painter.drawPixmap(QRectF(canvas.center().x() - w / 2, canvas.center().y() - h / 2, w, h),
+            painter.drawPixmap(QRectF(canvas.center().x() - w / 2, canvas.top() + max(0, min(height-h, height*self.settings.comment_y_ratio-h/2)), w, h),
                                self.pixmap, QRectF(self.pixmap.rect()))

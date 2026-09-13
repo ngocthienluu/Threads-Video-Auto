@@ -22,7 +22,7 @@
 - [ ] Validate extraction on real cumulative user Thread screenshot sets and more atypical layouts.
 - [x] Integrate ElevenLabs, voice selection, protected manual edits and cache (HTTP-mock validation; live account validation remains below).
 - [x] Implement ffprobe duration and wire timeline to audio; verify real WAV/MP3 fixtures.
-- [ ] Implement continuous gameplay, music, watermark and FFmpeg export.
+- [x] Implement continuous gameplay, music, watermark and FFmpeg export (2026-09-14).
 
 # Medium Priority
 
@@ -46,8 +46,7 @@
 # Blocked
 
 - [x] Actual ffprobe integration validation with real audio and local FFmpeg MP3 encoding.
-- [ ] Actual final video renderer validation.
-  Reason: Local FFmpeg is installed; final video renderer remains a later phase.
+- [x] Actual final video renderer validation with local synthetic media (2026-09-14).
 - [ ] Live ElevenLabs validation.
   Reason: Provider implemented and tested with mocks; live validation requires a configured account key/voice and a credit-consuming request. No live request sent.
 
@@ -84,7 +83,7 @@
 - [x] Verify 87 tests, offscreen startup and pip check; update architecture/spec/setup/ADR.
 - [ ] LIVE integration: configure an ElevenLabs account key/voice and verify generated Vietnamese speech and audio playback. Not claimed tested; no live API request sent.
 - [ ] Add scene-ordered batch voice generation after live selected-item validation.
-- [ ] Implement continuous gameplay/music/watermark and final video rendering; FFmpeg is now available locally, renderer remains unimplemented.
+- [x] Implement continuous gameplay/music/watermark and final video rendering; actual FFmpeg tests pass (2026-09-14).
 
 
 ## ElevenLabs voice access follow-up
@@ -110,3 +109,15 @@
 - [x] Recheck references/file identity, refuse unsafe paths or unreadable projects and report skipped deletes.
 - [x] Pass 107 tests and offscreen app smoke; update README/spec/architecture/ADR-018.
 - [ ] User desktop acceptance of cleanup preview on actual working projects/audio.
+
+
+## Export phase (2026-09-14)
+- [x] Add persisted gameplay/music/watermark/screenshot/timing controls.
+- [x] Implement continuous FFmpeg MP4 composition with actual narration duration and progressive screenshots.
+- [x] Add worker progress/cancel, close coordination and atomic previous-output preservation.
+- [x] Verify 113 tests, offscreen smoke, actual 1080x1920 export and frame inspection; update docs/ADR-019.
+- [ ] Visible Windows acceptance with the user's gameplay and narration, including human listening check.
+- [ ] Benchmark longer projects/many images and additional FFmpeg versions.
+- [ ] Add composed playback preview and missing-media relink UI.
+
+- [x] Fix media Browse default folders and retain current-file parent; verify dialog arguments, 22 UI tests and offscreen startup (2026-09-14).
