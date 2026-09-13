@@ -1,5 +1,17 @@
 # Threads Video Studio
 
+## Visual editor V1 (2026-09-14)
+
+1. Import screenshots; select a comment in **Scenes**. Use **Comment / Voice** for the existing OCR and narration controls.
+2. Return to **Canvas**. Click and drag the screenshot or watermark; drag a blue corner to resize proportionally. **Inspector > Transform / Style** edits exact coordinates, size, rotation, opacity and watermark font size.
+3. **Layers** selects objects and controls visibility, locking and front/back order. **Delete** removes only the selected overlay, keeping its comment/audio; Undo restores it. Gameplay geometry is fixed and locked.
+4. **Project** contains compact OCR, Gameplay, Music, Watermark and timing sections. Screenshot width/Y settings are defaults for new objects (or Reset Transform), not overrides of an edited object.
+5. Generate current narration for every comment to populate the **AUTO timeline**. Click/drag the playhead to scrub; click a clip to select it. Zoom changes pixels per second; long timelines scroll horizontally. Without valid audio, the canvas remains usable for authoring and the timeline stays pending.
+6. **Ctrl+S** saves object transforms in project JSON. **Ctrl+Z**, **Ctrl+Shift+Z / Ctrl+Y** undo/redo canvas edits. Delete is scoped to the canvas so text editing remains safe. Undo history is session-only and clears on project load.
+7. Export reads the same object position, scale, rotation, opacity and layer order. Safe-area/snap guides are editor-only. Existing JSON projects acquire default objects when opened; save to retain them. Older app versions may reject these new fields.
+
+**Preview boundary:** this is a layout/state editor, with an explicitly labelled gameplay placeholder. It does not play gameplay, music or narration in sync. Open the exported MP4 to review motion/audio. Manual clip move/trim/split, keyframes, meme/SFX/text creation, waveform and realtime playback remain V2 work; the empty Meme/SFX track contains no fabricated clips. Auto Generate Text still makes no paid TTS requests.
+
 ## Xuất video MP4
 
 1. Chuẩn bị audio cho **tất cả comment**; item còn pending/error phải Generate Voice trước.
@@ -7,7 +19,7 @@
 3. Tùy chọn bật **Music**, chọn nhạc; chỉnh watermark, kích thước/vị trí ảnh và khoảng nghỉ.
 4. Bấm **EXPORT**, chọn file `.mp4` (mặc định trong `output/`). Có **Cancel Export**; hủy/lỗi giữ nguyên bản xuất cũ.
 
-Xuất video dùng FFmpeg cục bộ, không gọi API TTS. Mặc định 1080×1920, 30 fps, H.264/AAC. PREVIEW hiện vẫn là ảnh tĩnh; mở MP4 bằng trình phát video để xem kết quả đầy đủ.
+Export uses local FFmpeg and does not call TTS. Default output is 1080x1920 at 30 fps, H.264/AAC. Canvas previews object layout and timeline state; open the MP4 for actual gameplay/audio playback.
 
 
 ## Tạo giọng đọc
@@ -45,7 +57,7 @@ Text rỗng hoặc OCR/reply chưa chắc chắn bị chặn; kiểm tra và ch�
 
 Ứng dụng desktop Windows tạo video dọc từ screenshot bình luận, gameplay và giọng đọc. **Hiện tại:** Tesseract là OCR mặc định; app tách comment/reply, chuẩn bị TTS Text và tích hợp tạo giọng ElevenLabs, cache audio và timeline theo thời lượng ffprobe. EXPORT MP4 đã được triển khai với gameplay, nhạc và watermark.
 
-Đã kiểm chứng: **113 tests pass**, gồm OCR thật, UI offscreen, TTS qua HTTP giả lập, cache và ffprobe đo WAV/MP3 thật. **Chưa gọi ElevenLabs thật hoặc nghe đánh giá giọng:** cần API key/voice của bạn. FFmpeg/ffprobe đã cài cục bộ ở `tools/ffmpeg/bin/`, không sửa PATH hệ thống. Preview video vẫn là ảnh tĩnh.
+Validation: **130 tests pass**, including local OCR, offscreen UI, mocked TTS, actual ffprobe and FFmpeg exports. Editor tests compare rendered MP4 pixels with Qt canvas transforms. No live ElevenLabs call or human listening review was performed for this iteration.
 
 ## Cài đặt
 

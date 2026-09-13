@@ -21,6 +21,7 @@ Read this file, README.md, docs/PRODUCT_SPEC.md, docs/ARCHITECTURE.md, docs/PROG
 - Preserve manual body and TTS flags. Only explicit Re-run extraction replaces a manual body; it must still preserve manual TTS. Ambiguous thread overlap must never fall back to narrating the entire question again.
 - Use Python/PySide6 locally on Windows and FFmpeg for final rendering. Never render every frame in Python unnecessarily.
 - No unnecessary rewrites, premature optimization, unexplained dependencies or monolithic files.
+- Do not store visual-only transforms separate from the project model. Canvas and renderer must use the same 1080x1920 logical EditorObject coordinates; viewport pixels are never persisted.
 - Centralize defaults; never hard-code absolute paths or API keys. Use .env/environment for secrets; never commit or log secrets.
 - Run OCR/TTS/API/FFmpeg and other long operations outside the UI thread. Report status, progress, errors and completion.
 - Invoke subprocesses using argument lists, not shell strings. Handle Windows paths, capture FFmpeg stderr and log sanitized commands at DEBUG.

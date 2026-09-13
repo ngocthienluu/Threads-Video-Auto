@@ -29,3 +29,8 @@ AI meme/SFX suggestions; subtitles; batch generation; template library; advanced
 
 ## 2026-09-14 status
 V1 phases 3-6 now have selected-item voice generation/cache, measured timeline, media controls and final FFmpeg export. Mock TTS and actual local encode tests pass; live voice permissions and visible production acceptance are separate. Next are composed preview/missing-media recovery and end-to-end acceptance; batch voice generation remains pending.
+
+## Editor roadmap (2026-09-14)
+- Editor V1: implemented logical QGraphics canvas, movable/resizable comments and watermark, inspector/layers, undo, measured AUTO timeline/scrubbing/zoom, persistence and matching FFmpeg transforms. Offscreen/real-export validation complete; visible Windows acceptance still pending.
+- Editor V2: actual synchronized gameplay/audio preview; manual clip timing, move/trim/split; meme/SFX/text creation and rendering; keyframes; waveform; missing-media relink; long-project performance and thumbnail decoding workers.
+- Editor V3: multi-select/grouping/copy-paste, richer animation/easing, subtitles, presets/template library and batch editing/export.

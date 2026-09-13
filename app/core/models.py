@@ -8,7 +8,7 @@ from typing import get_args, get_origin, get_type_hints
 from uuid import uuid4
 from copy import deepcopy
 from app.core.ocr_models import OCRResult
-from app.core.editor_objects import EditorObject
+from app.core.editor_objects import EditorObject, ObjectType
 
 from app.core.config import (BackgroundSettings, CleanerSettings, MusicSettings,
                              TimingSettings, VideoSettings, WatermarkSettings, ExtractionSettings)
@@ -185,8 +185,23 @@ class Project:
                     item.ocr_result.validate()
                 if item.ocr_status not in {"pending", "done", "manual", "error"} or item.tts_status not in {"pending", "done", "error"} or item.timeline_status not in {"pending", "done"}:
                     raise ValueError("Invalid item status.")
+        linked=set()
+        globals_seen=set()
+        item_ids={item.id for scene in self.scenes for item in scene.items}
         for obj in self.editor_objects:
             obj.validate()
+            if obj.type == ObjectType.COMMENT_IMAGE:
+                if obj.source_item_id not in item_ids or obj.source_item_id in linked:
+                    raise ValueError("Comment objects require a unique existing source item.")
+                linked.add(obj.source_item_id)
+            if obj.type != ObjectType.BACKGROUND and obj.z_index < 1:
+                raise ValueError("Overlay layers must be above the fixed background layer.")
+            if obj.type in (ObjectType.BACKGROUND,ObjectType.WATERMARK):
+                if obj.source_item_id:raise ValueError("Global objects cannot link to a comment item.")
+                if obj.type in globals_seen:raise ValueError("Duplicate global editor object.")
+                globals_seen.add(obj.type)
+            if obj.type == ObjectType.BACKGROUND and (obj.x,obj.y,obj.width,obj.height,obj.scale_x,obj.scale_y,obj.rotation,obj.opacity,obj.z_index,obj.locked,obj.deleted) != (0,0,1080,1920,1,1,0,1,0,True,False):
+                raise ValueError("Background geometry is fixed and locked in editor V1.")
             if not obj.id or obj.id in ids:
                 raise ValueError("Object IDs must be unique.")
             ids.add(obj.id)

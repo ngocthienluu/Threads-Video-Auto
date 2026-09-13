@@ -123,7 +123,12 @@ class PreviewWidget(QGraphicsView):
         self.selected.emit(selected[0].model.id if selected else "")
 
     def set_image(self,path=""):
-        # Compatibility for existing authoring selection; object assets are cached.
+        # Reuse the displayed object asset rather than decoding another full copy.
+        if self.project:
+            linked={i.id:i.original_image_path for scene in self.project.scenes for i in scene.items}
+            match=next((item for item in self.objects.values() if linked.get(item.model.source_item_id)==path),None)
+            if match:self.pixmap=match.pixmap;return
+        # Compatibility for a caller using the widget before a project is attached.
         key = ("image",path)
         if key not in self.cache: self.cache[key] = QPixmap(path) if path else QPixmap()
         self.pixmap = self.cache[key]
@@ -134,8 +139,10 @@ class PreviewWidget(QGraphicsView):
         for key in list(self.objects):
             if key not in wanted:
                 self.scene().removeItem(self.objects.pop(key))
+        used_keys=set()
         for obj in wanted.values():
             key = (obj.id,obj.font_size,project.watermark_settings.text,project.watermark_settings.font) if obj.type == ObjectType.WATERMARK else (obj.id,)
+            used_keys.add(key)
             if key not in self.cache:
                 try:
                     im = object_image(project,obj)
@@ -145,6 +152,7 @@ class PreviewWidget(QGraphicsView):
             if obj.id not in self.objects:
                 item=CanvasObject(self,obj,self.cache[key]);self.objects[obj.id]=item;self.scene().addItem(item)
             item=self.objects[obj.id];item.model=obj;item.pixmap=self.cache[key];item.refresh()
+        self.cache={key:value for key,value in self.cache.items() if key in used_keys}
 
     def select_object(self,identity):
         self.scene().blockSignals(True)
@@ -159,6 +167,10 @@ class PreviewWidget(QGraphicsView):
             active = obj.active_at(time) if ready else obj.visible and not obj.deleted and (not obj.source_item_id or obj.source_item_id == authoring_item)
             if obj.type == ObjectType.WATERMARK: active = active and self.project.watermark_settings.enabled
             item.setVisible(active)
+
+    def drawBackground(self,painter,rect):
+        super().drawBackground(painter,rect)
+        painter.fillRect(self.sceneRect(),QColor("black"))
 
     def drawForeground(self,painter,rect):
         if not self.project:return

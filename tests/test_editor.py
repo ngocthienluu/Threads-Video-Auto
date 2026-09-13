@@ -138,3 +138,33 @@ class EditorTests(unittest.TestCase):
         self.assertGreater(self.obj.width,original)
         self.assertAlmostEqual(self.obj.width/self.obj.height,3)
         self.assertEqual(len(gestures),1)
+
+    def test_delete_scene_prunes_linked_objects(self):
+        from app.core.project_manager import ProjectManager
+        manager=ProjectManager(self.project)
+        manager.delete(self.project.scenes[0])
+        self.assertFalse(any(o.source_item_id for o in self.project.editor_objects))
+        self.project.validate()
+    def test_rotated_resize_keeps_opposite_corner(self):
+        from dataclasses import asdict
+        from app.core.editor_geometry import resize_corner
+        self.obj.x=100;self.obj.y=200;self.obj.width=300;self.obj.height=100;self.obj.rotation=90
+        # Opposite top-left after clockwise rotation is (300,100).
+        result=resize_corner(asdict(self.obj),3,100,700)
+        nw,nh=result["width"],result["height"]
+        self.assertAlmostEqual(result["x"]+nw/2+nh/2,300)
+        self.assertAlmostEqual(result["y"]+nh/2-nw/2,100)
+        self.assertAlmostEqual(nw/nh,3)
+
+    def test_parent_scene_selection_still_moves_whole_scene(self):
+        from app.ui.main_window import MainWindow
+        window=MainWindow()
+        try:
+            window.manager.project=self.project
+            second=window.manager.add_single(str(self.path))
+            window.refresh(second.id)
+            self.assertIsNone(window.item)
+            self.assertEqual(window.scene.id,second.id)
+            window.move_selected(-1)
+            self.assertEqual(window.manager.project.scenes[0].id,second.id)
+        finally:window.manager.dirty=False;window.close()

@@ -147,3 +147,12 @@ Each phase gets relevant tests, offscreen app startup, dated progress and a sepa
 - [x] Phase D: separate multi-track timeline, measured AUTO clip records, ruler/playhead, mouse scrub/clip signals, horizontal scrolling and working zoom. Empty/pending projects have no fabricated clips. 32 editor/timeline/UI tests pass (explicit exit 0); offscreen startup exits 0. Canvas synchronization follows in E.
 
 - [x] Phase E: scrub/clip/scene selection synchronization, exclusive end-time visibility, authoring mode before audio, legacy migration after path resolution, save/load transforms and undo reset on project switch. Removed duplicate watermark transform controls. Fixed native Qt crash caused by deleting the checkbox row inside its itemChanged callback (12 repeated lifecycle runs passed). 34 relevant tests pass; real handle mouse gesture and boundary/save-load checks pass; offscreen startup exits 0.
+
+## Visual editor Phase F / iteration result (2026-09-14)
+- [x] Export now consumes the same persisted logical geometry as the canvas: comment/watermark X/Y, size/scale, clockwise rotation, opacity, visibility, deletion and z-order. Static input preparation happens once; audio probing/mixing and continuous gameplay remain in the existing FFmpeg pipeline.
+- [x] Real export tests compare MP4 pixels against Qt scene rendering and verify layer overlap, hidden background/deleted comments, source preservation, continuous playback, cancellation and atomic output. Full suite: 130 tests passed; offscreen app startup exits 0. TTS network tests are mocked.
+- [x] Captured and inspected offscreen UI at actual 1920x1080 and 2560x1440. Created/inspected `output/editor-validation-20260914.mp4` (1080x1920, H.264/AAC, 1.566667s), `output/editor-render-20260914.png` and `output/editor-ui-{1920,2560}.png`. Synthetic media only; artifacts are ignored by Git.
+- [x] Updated README, PRODUCT_SPEC, ARCHITECTURE, ROADMAP, AGENTS and ADR-020/021/022. A-F are separate local commits, after the earlier export/Browse baseline commit.
+- [ ] Visible Windows acceptance and listening review with the user's own media; no live ElevenLabs synthesis was sent in this iteration.
+- [ ] Synchronized gameplay/audio preview: current canvas is a layout/state editor with a labelled gameplay placeholder. MANUAL clip movement/trim/split, animation/keyframes, meme/SFX/text creation, waveform and relinking remain V2.
+- [ ] Benchmark many high-resolution screenshots/long exports; asset decoding is still synchronous at import, while dragging reuses cached pixmaps.

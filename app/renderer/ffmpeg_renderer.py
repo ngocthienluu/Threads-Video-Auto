@@ -7,11 +7,14 @@ import random
 import subprocess
 import tempfile
 import time
-from PIL import Image, ImageOps, ImageDraw, ImageFont
+from PIL import Image
 from app.core.config import ROOT
 from app.core.timeline import build_timeline
 from app.renderer.media import RenderError, check_cancel, executable, probe
 from app.renderer.filter_builder import build_filter_graph
+from app.core.editor_scene import ensure_objects, sync_timings
+from app.core.editor_objects import ObjectType
+from app.renderer.editor_compositor import prepare_overlay, RenderOverlay
 
 log = logging.getLogger(__name__)
 
@@ -22,7 +25,10 @@ class FFmpegRenderer:
 
     def render(self, project, output, progress=None, cancel=None, overwrite=False):
         project = deepcopy(project)
+        ensure_objects(project)
         project.validate()
+        if any(o.type not in (ObjectType.BACKGROUND,ObjectType.COMMENT_IMAGE,ObjectType.WATERMARK) and o.visible and not o.deleted for o in project.editor_objects):
+            raise RenderError("Meme, text and image editor objects are reserved for a future renderer.")
         check_cancel(cancel)
         items = [item for scene in project.scenes for item in scene.items]
         if not items:
@@ -61,6 +67,7 @@ class FFmpegRenderer:
                 raise RenderError("Narration file has no audio stream.")
             item.audio_duration = float(data["format"]["duration"])
         timeline = build_timeline(project)
+        sync_timings(project,timeline)
         bg = probe(background, cancel, ffprobe)
         if not any(s.get("codec_type") == "video" for s in bg["streams"]):
             raise RenderError("Gameplay file has no video stream.")
@@ -87,15 +94,18 @@ class FFmpegRenderer:
                     offset = random.uniform(0, max(0, available-.05)) if settings.random_start else 0
                     args.extend(["-ss", f"{offset:.6f}", "-i", str(path)])
                 input_media(background, project.background_settings, duration, True)
+                overlays=[]
+                comments={o.source_item_id:o for o in project.editor_objects if o.type==ObjectType.COMMENT_IMAGE}
                 for n, item in enumerate(items):
                     check_cancel(cancel)
+                    obj=comments[item.id]
                     try:
-                        with Image.open(item.original_image_path) as source:
-                            im = ImageOps.exif_transpose(source).convert("RGBA")
-                            scale = min(v.width*v.comment_max_width_ratio/im.width, v.height*.9/im.height)
-                            im = im.resize((max(1, round(im.width*scale)), max(1, round(im.height*scale))), Image.Resampling.LANCZOS)
-                            image_path = work / f"image{n}.png"; im.save(image_path)
-                    except (OSError, ValueError):
+                        if obj.visible and not obj.deleted:
+                            image,x,y=prepare_overlay(project,obj)
+                            overlays.append(RenderOverlay(1+2*n,x,y,obj.start_time,obj.end_time,obj.z_index))
+                        else:image=Image.new("RGBA",(1,1))
+                        image_path=work/f"image{n}.png";image.save(image_path)
+                    except (OSError,ValueError):
                         raise RenderError(f"Cannot prepare screenshot {n+1}.") from None
                     args.extend(["-loop", "1", "-framerate", str(v.fps), "-i", str(image_path), "-i", str(Path(item.audio_path).resolve())])
                 index = 1 + 2*len(items)
@@ -103,14 +113,17 @@ class FFmpegRenderer:
                 if music:
                     input_media(music, project.music_settings, float(music_data["format"]["duration"]))
                     index += 1
-                mark_index = None
-                if project.watermark_settings.enabled and project.watermark_settings.text:
-                    mark = work / "watermark.png"
-                    self.watermark(project, mark)
-                    args.extend(["-loop", "1", "-framerate", str(v.fps), "-i", str(mark)])
-                    mark_index = index
+                mark_obj=next(o for o in project.editor_objects if o.type==ObjectType.WATERMARK)
+                if project.watermark_settings.enabled and project.watermark_settings.text and mark_obj.visible and not mark_obj.deleted:
+                    mark=work/"watermark.png"
+                    try:
+                        image,x,y=prepare_overlay(project,mark_obj);image.save(mark)
+                    except (OSError,ValueError):
+                        raise RenderError("Watermark font unavailable. Select a valid font or disable watermark.") from None
+                    args.extend(["-loop","1","-framerate",str(v.fps),"-i",str(mark)])
+                    overlays.append(RenderOverlay(index,x,y,mark_obj.start_time,mark_obj.end_time,mark_obj.z_index))
                 graph = work / "filters.txt"
-                graph.write_text(build_filter_graph(project, timeline, music_index, mark_index, bg_audio), encoding="utf-8")
+                graph.write_text(build_filter_graph(project,timeline,music_index,background_audio=bg_audio,overlays=overlays),encoding="utf-8")
                 with tempfile.NamedTemporaryFile(dir=output.parent, prefix=".render-", suffix=".mp4", delete=False) as stream:
                     temporary_output = Path(stream.name)
                 args.extend(["-/filter_complex", str(graph), "-map", "[vout]", "-map", "[aout]", "-t", f"{total:.6f}",
@@ -160,20 +173,9 @@ class FFmpegRenderer:
             raise RenderError("FFmpeg export failed. " + detail)
 
     @staticmethod
-    def watermark(project, path):
-        cfg, v = project.watermark_settings, project.video_settings
-        font_path = cfg.font or (str(Path(os.environ["WINDIR"]) / "Fonts/segoeui.ttf") if os.environ.get("WINDIR") else "DejaVuSans.ttf")
-        try:
-            font = ImageFont.truetype(font_path, cfg.size)
-        except OSError:
-            raise RenderError("Watermark font unavailable. Select a .ttf font or disable watermark.") from None
-        image = Image.new("RGBA", (v.width, v.height))
-        draw = ImageDraw.Draw(image)
-        box = draw.textbbox((0,0), cfg.text, font=font)
-        width, height = box[2]-box[0], box[3]-box[1]
-        if cfg.position == "top-center": x,y=(v.width-width)/2,cfg.y
-        elif cfg.position == "bottom-center": x,y=(v.width-width)/2,v.height-height-cfg.y
-        elif cfg.position == "custom": x,y=cfg.x,cfg.y
-        else: raise RenderError("Unsupported watermark position.")
-        draw.text((max(0,min(v.width-width,x))-box[0],max(0,min(v.height-height,y))-box[1]),cfg.text,font=font,fill=(255,255,255,round(255*cfg.opacity)))
-        image.save(path)
+    def watermark(project,path):
+        project=deepcopy(project);ensure_objects(project)
+        obj=next(o for o in project.editor_objects if o.type==ObjectType.WATERMARK)
+        image,x,y=prepare_overlay(project,obj)
+        canvas=Image.new("RGBA",(project.video_settings.width,project.video_settings.height))
+        canvas.alpha_composite(image,(x,y));canvas.save(path)

@@ -123,3 +123,54 @@ class RendererTests(unittest.TestCase):
         reference=Image.open(io.BytesIO(expected)).convert("RGB")
         diff=ImageStat.Stat(ImageChops.difference(actual.crop((0,230,180,320)),reference.crop((0,230,180,320))))
         self.assertLess(sum(diff.mean)/3,12)
+
+    def test_editor_transform_matches_canvas_pixels(self):
+        from app.core.editor_scene import ensure_objects,sync_timings
+        from app.core.editor_objects import ObjectType
+        from app.core.timeline import build_timeline
+        from PySide6.QtWidgets import QApplication
+        from PySide6.QtGui import QImage,QPainter
+        from PySide6.QtCore import QRectF
+        from app.ui.preview_widget import PreviewWidget
+        from PIL import ImageChops,ImageStat
+        import os
+        os.environ.setdefault("QT_QPA_PLATFORM","offscreen")
+        self.__class__.qt_app=QApplication.instance() or QApplication([])
+        ensure_objects(self.project)
+        comments=[o for o in self.project.editor_objects if o.type==ObjectType.COMMENT_IMAGE]
+        first,second=comments
+        first.x=120;first.y=300;first.width=360;first.height=120;first.rotation=90;first.opacity=.5
+        second.deleted=True
+        bg=next(o for o in self.project.editor_objects if o.type==ObjectType.BACKGROUND);bg.visible=False
+        mark=next(o for o in self.project.editor_objects if o.type==ObjectType.WATERMARK)
+        self.project.watermark_settings.enabled=True
+        mark.x=300;mark.y=900;mark.width=480;mark.height=60;mark.opacity=.65;mark.rotation=-12
+        output=self.root/"transforms.mp4";self.renderer.render(self.project,output)
+        frame=self.frame(output,.3)
+        pixel=frame.getpixel((50,60));self.assertAlmostEqual(pixel[0],128,delta=10);self.assertLess(pixel[1],10)
+        self.assertLess(sum(frame.getpixel((25,60))),15)
+        self.assertLess(sum(self.frame(output,1.1).getpixel((50,60))),15)
+        for scene in self.project.scenes:
+            for item in scene.items:item.audio_duration=.5
+        sync_timings(self.project,build_timeline(self.project))
+        canvas=PreviewWidget();canvas.set_project(self.project);canvas.show_state(.3,ready=True)
+        try:
+            image=QImage(180,320,QImage.Format.Format_RGBA8888);image.fill(0xff000000)
+            painter=QPainter(image);canvas.scene().render(painter,QRectF(0,0,180,320),QRectF(0,0,1080,1920));painter.end()
+            reference=Image.frombytes("RGBA",(180,320),bytes(image.bits())).convert("RGB")
+            difference=ImageStat.Stat(ImageChops.difference(frame,reference))
+            self.assertLess(sum(difference.mean)/3,3)
+        finally:canvas.close()
+    def test_editor_layer_order_is_exported(self):
+        from app.core.editor_scene import ensure_objects
+        from app.core.editor_objects import ObjectType
+        ensure_objects(self.project)
+        comment=next(o for o in self.project.editor_objects if o.type==ObjectType.COMMENT_IMAGE)
+        mark=next(o for o in self.project.editor_objects if o.type==ObjectType.WATERMARK)
+        for obj in (comment,mark):obj.x=120;obj.y=300;obj.width=360;obj.height=120;obj.opacity=1
+        self.project.watermark_settings.enabled=True
+        with patch("app.core.editor_scene.watermark_image",return_value=Image.new("RGBA",(60,20),"blue")):
+            mark.z_index=50;back=self.root/"back.mp4";self.renderer.render(self.project,back)
+            self.assertGreater(self.frame(back,.3).getpixel((40,60))[0],220)
+            mark.z_index=300;front=self.root/"front.mp4";self.renderer.render(self.project,front)
+            self.assertGreater(self.frame(front,.3).getpixel((40,60))[2],220)

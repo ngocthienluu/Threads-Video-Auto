@@ -163,6 +163,7 @@ class MainWindow(QMainWindow):
 
     def update_title(self):
         timeline = self.manager.refresh_timeline()
+        self.scenes.update_status(self.manager.project)
         self.timeline_label.setText(f"Timeline: {len(timeline.segments)} items · {timeline.total_duration:.2f}s" if timeline else
                                     "Timeline pending — generate measured audio for every item")
         if hasattr(self,"visual_editor"): self.visual_editor.refresh(timeline)

@@ -45,6 +45,7 @@ class SceneList(QTreeWidget):
                 if item.id == select_id:
                     chosen = child
             row.setExpanded(True)
+        self.update_status(project)
         self.filter_scenes(self.filter_value)
         self.blockSignals(False)
         if chosen:
@@ -61,3 +62,12 @@ class SceneList(QTreeWidget):
             row = self.topLevelItem(index)
             scene,_ = row.data(0,Qt.ItemDataRole.UserRole)
             row.setHidden(value != "All" and scene.scene_type.value != value.lower())
+
+    def update_status(self,project):
+        timing=project.timing_settings
+        for index in range(self.topLevelItemCount()):
+            row=self.topLevelItem(index);scene,_=row.data(0,Qt.ItemDataRole.UserRole)
+            ready=all(i.tts_status=="done" and i.audio_duration>0 and Path(i.audio_path).is_file() for i in scene.items)
+            duration=sum(i.audio_duration+timing.voice_pre_padding+timing.voice_post_padding for i in scene.items)
+            status=f"{duration:.1f}s - Ready" if ready else "Timing pending - Needs audio"
+            row.setText(0,f"Scene {index+1:02d} - {scene.scene_type.value.title()} ({len(scene.items)})\n{status}")

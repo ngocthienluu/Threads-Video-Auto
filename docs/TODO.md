@@ -140,3 +140,12 @@ Each phase gets relevant tests, offscreen app startup, dated progress and a sepa
 - [x] Phase D: separate multi-track timeline, measured AUTO clip records, ruler/playhead, mouse scrub/clip signals, horizontal scrolling and working zoom. Empty/pending projects have no fabricated clips. 32 editor/timeline/UI tests pass (explicit exit 0); offscreen startup exits 0. Canvas synchronization follows in E.
 
 - [x] Phase E: scrub/clip/scene selection synchronization, exclusive end-time visibility, authoring mode before audio, legacy migration after path resolution, save/load transforms and undo reset on project switch. Removed duplicate watermark transform controls. Fixed native Qt crash caused by deleting the checkbox row inside its itemChanged callback (12 repeated lifecycle runs passed). 34 relevant tests pass; real handle mouse gesture and boundary/save-load checks pass; offscreen startup exits 0.
+
+## Visual editor final verification / follow-up
+- [x] Phase F: shared logical renderer transforms and real MP4/Qt pixel comparisons; 130 regression tests pass, offscreen startup and both target desktop layouts inspected.
+- [x] Save/load and old-project migration preserve edited layout; scene-level Move Up/Down still reorder whole scenes; deleting a scene prunes its object links.
+- [x] Documentation, three editor ADRs and the AGENTS shared-transform rule updated; no extra dependency or OCR/TTS pipeline rewrite.
+- [ ] User acceptance on the visible Windows desktop with actual screenshots/gameplay/narration.
+- [ ] Implement synchronized media preview, replacing the explicit gameplay placeholder.
+- [ ] V2: MANUAL clip move/trim/split, waveform, keyframes and meme/SFX/text authoring/rendering.
+- [ ] Add missing-media relink and benchmark long-project memory/import latency; consider asynchronous thumbnail decoding.

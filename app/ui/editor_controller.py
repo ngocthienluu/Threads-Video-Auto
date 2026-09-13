@@ -55,7 +55,7 @@ class EditorController:
     def refresh(self,timeline):
         w=self.window
         if self.project is not w.manager.project:
-            self.undo.clear();self.selected_id="";self.time=0.0;w.preview.cache.clear()
+            self.undo.clear();self.selected_id="";self.time=0.0;w.preview.cache.clear();w.preview.select_object("");w.scenes.thumbnails.clear()
         self.project=w.manager.project
         ensure_objects(self.project);sync_timings(self.project,timeline);self.timeline=timeline
         self.time=min(self.time,timeline.total_duration) if timeline else 0.0
@@ -125,12 +125,12 @@ class EditorController:
         if not self.project:return
         setattr(self.project,key,value);self.changed("");self.window.preview.viewport().update()
 
-    def select_object(self,identity):
+    def select_object(self,identity,sync_scene=True):
         if self.selecting:return
         obj=self.find(identity) if identity else None
         if obj and obj.deleted:identity="";obj=None
         if obj and obj.source_item_id:
-            self.select_scene_item(obj.source_item_id)
+            if sync_scene:self.select_scene_item(obj.source_item_id)
             if self.timeline and not obj.start_time <= self.time < obj.end_time:
                 self.time=obj.start_time
                 self.timeline_widget.set_time(self.time)
@@ -152,7 +152,7 @@ class EditorController:
         if obj:
             if self.timeline:
                 self.time=obj.start_time;self.timeline_widget.set_time(self.time)
-            self.select_object(obj.id)
+            self.select_object(obj.id,sync_scene=False)
         self.window.preview.show_state(self.time,item.id if item else None,self.timeline is not None)
 
     def select_scene_item(self,item_id):
@@ -199,7 +199,11 @@ class EditorController:
         for n,obj in enumerate(objects):
             row=tree.topLevelItem(n);row.setText(0,obj.name)
             row.setCheckState(1,Qt.CheckState.Checked if obj.visible else Qt.CheckState.Unchecked)
-            row.setCheckState(2,Qt.CheckState.Checked if obj.locked else Qt.CheckState.Unchecked)
+            if obj.type==ObjectType.BACKGROUND:
+                row.setData(2,Qt.ItemDataRole.CheckStateRole,None);row.setText(2,"Fixed")
+                row.setToolTip(2,"Background fills the video; geometry editing is reserved for a later version.")
+            else:
+                row.setText(2,"");row.setCheckState(2,Qt.CheckState.Checked if obj.locked else Qt.CheckState.Unchecked)
             row.setSelected(obj.id==self.selected_id)
         tree.setColumnWidth(0,170);tree.setColumnWidth(1,55);tree.setColumnWidth(2,55)
         tree.blockSignals(False);self.binding=False

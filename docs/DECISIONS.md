@@ -173,3 +173,24 @@ Date: 2026-09-14
 Context: OCR, selected-item narration and cache are usable; next V1 phases are media controls and final MP4 export.
 Decision: Implement the planned single continuous FFmpeg graph, using ffprobe measurements on an immutable project snapshot. Prepare screenshots/watermark once with Pillow, then let FFmpeg handle every video frame. Rasterize watermark text to avoid filter quoting problems. Stage output next to destination, validate it and atomically publish; cancel/error keep prior output. Use existing Worker/UI cancellation conventions and existing project settings, without changing schema or introducing dependencies.
 Consequences: Correct final export precedes a composed preview. All items need current audio. Random media files can be selected through existing JSON flags; normal UI selects explicit files and random start/loop. Two encoder/filter threads reduce CPU pressure, but input count/resolution still affect memory; large projects require later scalability validation. FFmpeg 9.0.1 is tested, including its -/filter_complex syntax. Enabled deferred effects are rejected instead of silently dropped.
+
+## ADR-020: Use QGraphicsView/QGraphicsScene for the visual editor
+Date: 2026-09-14
+Status: Accepted and implemented.
+Context: Static preview and long settings forms cannot support direct object editing.
+Decision: Use QGraphicsObject items with functional corner handles, cached pixmaps, a focused inspector and QUndoStack. Keep OCR/TTS review in its own tab and pipeline services unchanged.
+Consequences: Qt handles hit-testing/selection/view transforms; we own proportional resize math and model binding. No frame-by-frame FFmpeg preview. Gameplay playback remains explicitly deferred rather than simulated.
+
+## ADR-021: Use 1080x1920 logical editor coordinates
+Date: 2026-09-14
+Status: Accepted and implemented.
+Context: Widget-relative placements drift with window size and disagree with final export.
+Decision: Persist top-left X/Y, base dimensions, scale, center rotation and opacity in EditorObject. View fitting is transient. The renderer converts logical pixels by output_width/1080 and output_height/1920 and rasterizes each static asset once. Default ratios are creation/reset inputs only.
+Consequences: Layout survives resize/save/load and scales to supported 9:16 outputs. Small output-pixel rounding/antialiasing differences remain; real MP4-vs-Qt pixel tests bound them. Background geometry stays fixed in V1.
+
+## ADR-022: Timeline, canvas and renderer share the project model
+Date: 2026-09-14
+Status: Accepted and implemented.
+Context: Independent visual transforms or decorative timeline blocks would misrepresent export.
+Decision: Add persisted EditorObject records linked to SceneItems. Derive AUTO clip records and object visibility intervals from measured narration. Treat end times as exclusive; prevent free clip moves/trims in AUTO. Save deletion tombstones so removed overlays are not recreated, while preserving their narration. All geometry commands modify the same model that export snapshots.
+Consequences: Additive schema-1 loading migrates old projects, but older app versions may reject newly saved fields. Undo history stays session-only. Manual timing, additional visual types, waveform and synchronized playback require later implementation, with no fake active controls now.

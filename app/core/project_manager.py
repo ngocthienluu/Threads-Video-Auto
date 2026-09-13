@@ -20,6 +20,9 @@ class ProjectManager:
     def changed(self) -> None:
         self.dirty = True
         self.project.updated_at = now()
+        from app.core.editor_objects import ObjectType
+        item_ids={i.id for s in self.project.scenes for i in s.items}
+        self.project.editor_objects[:]=[o for o in self.project.editor_objects if o.type!=ObjectType.COMMENT_IMAGE or o.source_item_id in item_ids]
         for scene in self.project.scenes:
             for item in scene.items:
                 item.start_time = item.end_time = 0.0

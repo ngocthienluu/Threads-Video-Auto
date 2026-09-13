@@ -11,7 +11,7 @@ def resize_corner(before,corner,x,y):
     dx,dy=x-anchor_x,y-anchor_y
     local_x,local_y=c*dx+s*dy,-s*dx+c*dy
     vx,vy=(w if right else -w),(h if bottom else -h)
-    factor=max(16/min(w,h),min(8192/max(w,h),(local_x*vx+local_y*vy)/(w*w+h*h)))
+    factor=max(min(16/min(w,h),8192/max(w,h)),min(8192/max(w,h),(local_x*vx+local_y*vy)/(w*w+h*h)))
     nw,nh=w*factor,h*factor
     nax,nay=(0 if right else nw),(0 if bottom else nh)
     cx=anchor_x-c*(nax-nw/2)+s*(nay-nh/2)
