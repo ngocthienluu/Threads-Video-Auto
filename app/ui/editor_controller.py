@@ -7,6 +7,8 @@ from app.core.editor_scene import ensure_objects, sync_timings, default_comment,
 from app.core.editor_objects import ObjectType
 from app.core.models import now
 from app.ui.object_inspector import ObjectInspector
+from app.ui.timeline.timeline_widget import TimelineWidget
+from app.core.editor_timeline import clips_from_project
 
 class ObjectCommand(QUndoCommand):
     def __init__(self,controller,identity,before,after,label):
@@ -19,6 +21,7 @@ class EditorController:
     def __init__(self,window):
         self.window=window;self.project=None;self.selected_id="";self.time=0.0;self.timeline=None;self.binding=False
         self.undo=QUndoStack(window)
+        self.timeline_widget=TimelineWidget();window.timeline_layout.addWidget(self.timeline_widget)
         self.inspector=ObjectInspector();window.inspector_layout.insertWidget(1,self.inspector)
         self.inspector.edited.connect(self.edit_field);self.inspector.reset_requested.connect(self.reset_transform)
         controls=QHBoxLayout();window.inspector_layout.addLayout(controls)
@@ -61,6 +64,7 @@ class EditorController:
             else:widget.setChecked(getattr(self.project,key))
             widget.blockSignals(False)
         self.refresh_layers();self.inspector.bind(self.find())
+        self.timeline_widget.set_data(clips_from_project(self.project,timeline),timeline.total_duration if timeline else 0.0)
 
     def changed(self,identity):
         w=self.window;w.manager.dirty=True;w.manager.project.updated_at=now()
