@@ -19,9 +19,11 @@ class ObjectCommand(QUndoCommand):
 
 class EditorController:
     def __init__(self,window):
-        self.window=window;self.project=None;self.selected_id="";self.time=0.0;self.timeline=None;self.binding=False
+        self.window=window;self.project=None;self.selected_id="";self.time=0.0;self.timeline=None;self.binding=False;self.selecting=False
         self.undo=QUndoStack(window)
         self.timeline_widget=TimelineWidget();window.timeline_layout.addWidget(self.timeline_widget)
+        self.timeline_widget.scrubbed.connect(self.scrub)
+        self.timeline_widget.clip_selected.connect(self.select_clip)
         self.inspector=ObjectInspector();window.inspector_layout.insertWidget(1,self.inspector)
         self.inspector.edited.connect(self.edit_field);self.inspector.reset_requested.connect(self.reset_transform)
         controls=QHBoxLayout();window.inspector_layout.addLayout(controls)
@@ -56,6 +58,7 @@ class EditorController:
             self.undo.clear();self.selected_id="";self.time=0.0;w.preview.cache.clear()
         self.project=w.manager.project
         ensure_objects(self.project);sync_timings(self.project,timeline);self.timeline=timeline
+        self.time=min(self.time,timeline.total_duration) if timeline else 0.0
         w.preview.set_project(self.project)
         w.preview.show_state(self.time,w.item.id if w.item else None,timeline is not None)
         for widget,key in ((self.safe,"show_safe_area"),(self.snap,"snap_enabled"),(self.threshold,"snap_threshold")):
@@ -65,6 +68,7 @@ class EditorController:
             widget.blockSignals(False)
         self.refresh_layers();self.inspector.bind(self.find())
         self.timeline_widget.set_data(clips_from_project(self.project,timeline),timeline.total_duration if timeline else 0.0)
+        self.timeline_widget.set_time(self.time)
 
     def changed(self,identity):
         w=self.window;w.manager.dirty=True;w.manager.project.updated_at=now()
@@ -81,6 +85,7 @@ class EditorController:
         self.window.preview.set_project(self.project)
         self.window.preview.show_state(self.time,self.window.item.id if self.window.item else None,self.timeline is not None)
         self.changed(identity);self.refresh_layers();self.select_object(identity if not obj.deleted else "")
+        self.timeline_widget.set_data(clips_from_project(self.project,self.timeline),self.timeline.total_duration if self.timeline else 0.0)
 
     def commit(self,identity,before,after,label):
         if before!=after:self.undo.push(ObjectCommand(self,identity,before,after,label))
@@ -121,6 +126,15 @@ class EditorController:
         setattr(self.project,key,value);self.changed("");self.window.preview.viewport().update()
 
     def select_object(self,identity):
+        if self.selecting:return
+        obj=self.find(identity) if identity else None
+        if obj and obj.deleted:identity="";obj=None
+        if obj and obj.source_item_id:
+            self.select_scene_item(obj.source_item_id)
+            if self.timeline and not obj.start_time <= self.time < obj.end_time:
+                self.time=obj.start_time
+                self.timeline_widget.set_time(self.time)
+                self.window.preview.show_state(self.time,obj.source_item_id,True)
         self.selected_id=identity;self.window.preview.select_object(identity);obj=self.find()
         self.window.inspector_hint.setText(obj.name if obj else "Select an object on the canvas")
         self.inspector.bind(obj)
@@ -132,23 +146,63 @@ class EditorController:
         self.binding=False
 
     def select_item(self,item):
-        if not self.project:return
+        if not self.project or self.selecting:return
+        if item is None and self.window.scene:item=self.window.scene.items[0]
         obj=next((o for o in self.project.editor_objects if item and o.source_item_id==item.id and not o.deleted),None)
         if obj:
-            if self.timeline:self.time=obj.start_time
+            if self.timeline:
+                self.time=obj.start_time;self.timeline_widget.set_time(self.time)
             self.select_object(obj.id)
         self.window.preview.show_state(self.time,item.id if item else None,self.timeline is not None)
 
+    def select_scene_item(self,item_id):
+        tree=self.window.scenes
+        self.selecting=True
+        try:
+            for n in range(tree.topLevelItemCount()):
+                parent=tree.topLevelItem(n)
+                for k in range(parent.childCount()):
+                    row=parent.child(k);_,item=row.data(0,Qt.ItemDataRole.UserRole)
+                    if item.id==item_id:
+                        tree.setCurrentItem(row)
+                        return
+        finally:self.selecting=False
+
+    def scrub(self,time):
+        if not self.timeline:return
+        self.time=max(0,min(self.timeline.total_duration,time))
+        self.timeline_widget.set_time(self.time)
+        active=next((o for o in self.project.editor_objects if o.source_item_id and o.active_at(self.time)),None)
+        if active:self.select_scene_item(active.source_item_id)
+        self.window.preview.show_state(self.time,ready=True)
+        selected=self.find()
+        if active and (selected is None or selected.source_item_id):self.select_object(active.id)
+        elif selected and selected.source_item_id and not selected.active_at(self.time):self.select_object("")
+        self.window.statusBar().showMessage(f"Current time {self.time:.2f}s | Layout preview | Timeline zoom {self.timeline_widget.pixels_per_second:.0f} px/s")
+
+    def select_clip(self,clip):
+        if clip.source_item_id:self.select_scene_item(clip.source_item_id)
+        if clip.object_id:self.select_object(clip.object_id)
+        elif clip.track=="Music":
+            self.window.right_tabs.setCurrentIndex(1);self.window.settings.sections.setCurrentIndex(2)
+
     def refresh_layers(self):
-        self.binding=True;tree=self.window.layers;tree.clear()
-        for obj in sorted(self.project.editor_objects,key=lambda o:o.z_index,reverse=True):
-            if obj.deleted:continue
-            row=QTreeWidgetItem([obj.name,"",""]);row.setData(0,Qt.ItemDataRole.UserRole,obj.id)
-            row.setFlags(row.flags()|Qt.ItemFlag.ItemIsUserCheckable)
+        self.binding=True;tree=self.window.layers;tree.blockSignals(True)
+        objects=sorted((o for o in self.project.editor_objects if not o.deleted),key=lambda o:o.z_index,reverse=True)
+        identities=[tree.topLevelItem(n).data(0,Qt.ItemDataRole.UserRole) for n in range(tree.topLevelItemCount())]
+        # Never delete an item while Qt is emitting itemChanged for its checkbox.
+        if identities != [o.id for o in objects]:
+            tree.clear()
+            for obj in objects:
+                row=QTreeWidgetItem([obj.name,"",""]);row.setData(0,Qt.ItemDataRole.UserRole,obj.id)
+                row.setFlags(row.flags()|Qt.ItemFlag.ItemIsUserCheckable);tree.addTopLevelItem(row)
+        for n,obj in enumerate(objects):
+            row=tree.topLevelItem(n);row.setText(0,obj.name)
             row.setCheckState(1,Qt.CheckState.Checked if obj.visible else Qt.CheckState.Unchecked)
             row.setCheckState(2,Qt.CheckState.Checked if obj.locked else Qt.CheckState.Unchecked)
-            tree.addTopLevelItem(row);row.setSelected(obj.id==self.selected_id)
-        tree.setColumnWidth(0,170);tree.setColumnWidth(1,55);tree.setColumnWidth(2,55);self.binding=False
+            row.setSelected(obj.id==self.selected_id)
+        tree.setColumnWidth(0,170);tree.setColumnWidth(1,55);tree.setColumnWidth(2,55)
+        tree.blockSignals(False);self.binding=False
 
     def layer_selected(self):
         if self.binding:return

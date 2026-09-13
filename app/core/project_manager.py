@@ -192,6 +192,9 @@ class ProjectManager:
 
     def save(self, path: Path) -> None:
         path = path.resolve()
+        from app.core.editor_scene import ensure_objects, sync_timings
+        ensure_objects(self.project)
+        sync_timings(self.project,self.refresh_timeline())
         data = self.project.to_dict()
         Project.from_dict(data)  # Validate before writing anything.
         _map_paths(data, lambda value: _relative(value, path.parent))
@@ -220,6 +223,8 @@ class ProjectManager:
             candidate = Project.from_dict(data)
         except (ValueError, TypeError, KeyError, RecursionError) as exc:
             raise ValueError("Invalid project JSON: " + str(exc)) from exc
+        from app.core.editor_scene import ensure_objects
+        ensure_objects(candidate)
         missing = []
         _map_paths(data, lambda value: missing.append(value) or value if not Path(value).is_file() else value)
         self.project, self.path, self.dirty = candidate, path, False

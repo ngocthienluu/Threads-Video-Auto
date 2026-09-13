@@ -329,6 +329,13 @@ class MainWindow(QMainWindow):
                 self.error(exc)
 
     def edit_media_setting(self, group, key, value):
+        from app.core.editor_scene import watermark_image
+        from app.core.editor_objects import ObjectType
+        mark = next((o for o in self.manager.project.editor_objects if o.type == ObjectType.WATERMARK),None)
+        previous_mark_size = None
+        if mark and group == "watermark_settings" and key in ("text","font"):
+            try: previous_mark_size = watermark_image(self.manager.project,mark.font_size).size
+            except (OSError,ValueError): pass
         settings = getattr(self.manager.project,group)
         old = getattr(settings,key)
         setattr(settings,key,value)
@@ -338,6 +345,14 @@ class MainWindow(QMainWindow):
             self.settings.set_project(self.manager.project)
             self.error(exc)
             return
+        if previous_mark_size:
+            try:
+                width,height = watermark_image(self.manager.project,mark.font_size).size
+                mark.width *= width/previous_mark_size[0]
+                mark.height *= height/previous_mark_size[1]
+            except (OSError,ValueError):
+                setattr(settings,key,old);self.settings.set_project(self.manager.project)
+                self.error("Cannot load watermark font. Choose a valid local font.");return
         self.manager.changed()
         self.preview.update()
         self.update_title()

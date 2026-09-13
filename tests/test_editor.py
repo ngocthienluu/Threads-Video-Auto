@@ -95,3 +95,46 @@ class EditorTests(unittest.TestCase):
             controller.undo.undo();self.assertFalse(self.obj.deleted)
         finally:
             window.manager.dirty=False;window.close()
+
+    def test_scrub_visibility_and_saved_transforms(self):
+        from app.ui.main_window import MainWindow
+        window=MainWindow()
+        try:
+            window.manager.project=self.project
+            second=window.manager.add_single(str(self.path)).items[0]
+            audio=Path(self.temp.name)/"voice.wav";audio.write_bytes(b"measured elsewhere")
+            for scene in self.project.scenes:
+                for item in scene.items:item.audio_path=str(audio);item.audio_duration=1.0;item.tts_status="done"
+            first=self.project.scenes[0].items[0];window.refresh(first.id)
+            controller=window.visual_editor;timeline=controller.timeline
+            self.assertIsNotNone(timeline)
+            controller.edit_field("x",222)
+            controller.scrub(timeline.segments[0].end_time)
+            self.assertFalse(window.preview.objects[self.obj.id].isVisible())
+            second_obj=next(o for o in self.project.editor_objects if o.source_item_id==second.id)
+            controller.scrub(timeline.segments[1].start_time)
+            self.assertTrue(window.preview.objects[second_obj.id].isVisible())
+            self.assertFalse(window.preview.objects[self.obj.id].isVisible())
+            self.assertEqual(window.item.id,second.id)
+            controller.scrub(timeline.total_duration)
+            self.assertFalse(any(i.isVisible() for i in window.preview.objects.values()))
+            path=Path(self.temp.name)/"project.json";window.manager.save(path)
+            window.manager.load(path);window.refresh(first.id)
+            loaded=next(o for o in window.manager.project.editor_objects if o.id==self.obj.id)
+            self.assertEqual(loaded.x,222);self.assertEqual(controller.undo.count(),0)
+            self.assertEqual(window.preview.objects[loaded.id].pos().x(),222)
+        finally:window.manager.dirty=False;window.close()
+    def test_real_handle_mouse_gesture(self):
+        from PySide6.QtCore import Qt,QPoint
+        from PySide6.QtTest import QTest
+        self.canvas.show_state(authoring_item=self.obj.source_item_id)
+        self.canvas.select_object(self.obj.id);self.app.processEvents()
+        item=self.canvas.objects[self.obj.id];handle=item.handles[3]
+        start=self.canvas.mapFromScene(handle.scenePos());end=start+QPoint(30,10)
+        original=self.obj.width;gestures=[];self.canvas.gesture_finished.connect(lambda *args:gestures.append(args))
+        QTest.mousePress(self.canvas.viewport(),Qt.MouseButton.LeftButton,Qt.KeyboardModifier.NoModifier,start)
+        QTest.mouseMove(self.canvas.viewport(),end)
+        QTest.mouseRelease(self.canvas.viewport(),Qt.MouseButton.LeftButton,Qt.KeyboardModifier.NoModifier,end)
+        self.assertGreater(self.obj.width,original)
+        self.assertAlmostEqual(self.obj.width/self.obj.height,3)
+        self.assertEqual(len(gestures),1)
