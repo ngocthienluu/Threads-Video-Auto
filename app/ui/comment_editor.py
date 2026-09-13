@@ -8,6 +8,7 @@ from app.core.spelling import suggest_spelling
 class CommentEditor(QWidget):
     ocr_edited = Signal(str)
     body_edited = Signal(str)
+    reply_mode_changed = Signal(bool)
     tts_edited = Signal(str)
     clean_requested = Signal(bool)
     cleaner_changed = Signal(bool)
@@ -25,6 +26,9 @@ class CommentEditor(QWidget):
         layout = QFormLayout(self)
         self.role = QLabel("Select a comment")
         self.read_image = QPushButton("READ IMAGE → Detect comment → TTS text")
+        self.reply_only = QCheckBox("Image contains only the new reply (no previous comments)")
+        self.reply_only.setToolTip("Enable only after checking that this image contains the new reply, not the question or cumulative thread.")
+        self.reply_only.toggled.connect(self.reply_mode_changed)
         self.body = QPlainTextEdit()
         self.body.setPlaceholderText("Comment content will be detected automatically")
         self.body.setMaximumHeight(110)
@@ -70,7 +74,7 @@ class CommentEditor(QWidget):
                               ("", self.clean), ("", self.rerun), ("Details", self.details)]:
             advanced.addRow(label, widget)
         self.advanced.hide()
-        for label, widget in [("Item", self.role), ("", self.read_image), ("Detected Comment", self.body),
+        for label, widget in [("Item", self.role), ("", self.reply_only), ("", self.read_image), ("Detected Comment", self.body),
                               ("Detection", self.detection_status), ("", self.spelling), ("TTS Text", self.tts),
                               ("", self.remove_emoticons), ("", self.voice_panel),
                               ("Speed", self.speed), ("", self.regenerate), ("", self.open_audio),
@@ -124,10 +128,14 @@ class CommentEditor(QWidget):
 
     def set_item(self, item, cleaner_settings):
         self.setEnabled(item is not None)
+        self.reply_only.blockSignals(True)
+        self.reply_only.setVisible(bool(item and item.role.value == "reply"))
+        self.reply_only.setChecked(bool(item and item.reply_body_only))
+        self.reply_only.blockSignals(False)
         self.overwrite.setChecked(False)
         for widget in (self.ocr, self.body, self.tts, self.remove_emoticons, self.voice, self.speed):
             widget.blockSignals(True)
-        self.role.setText(item.role.value.title() + (" · cumulative body" if item.role.value == "reply" else "") if item else "Select a comment")
+        self.role.setText((item.role.value.title() + (" - reply only" if item.reply_body_only else " - cumulative body" if item.role.value == "reply" else "")) if item else "Select a comment")
         self.ocr.setPlainText((item.raw_ocr_text or item.ocr_text) if item else "")
         self.body.setPlainText(item.body_text if item else "")
         self.tts.setPlainText(item.tts_text if item else "")

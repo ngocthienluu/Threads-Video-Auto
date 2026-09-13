@@ -67,6 +67,7 @@ class SceneItem:
     full_body_text: str = ""
     new_body_text: str = ""
     body_text_is_manual: bool = False
+    reply_body_only: bool = False
     extraction_confidence: float = 0.0
     extraction_method: str = "pending"
     extraction_warnings: list[str] = field(default_factory=list)

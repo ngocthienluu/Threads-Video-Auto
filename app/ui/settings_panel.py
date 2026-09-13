@@ -1,7 +1,7 @@
 from pathlib import Path
 from app.core.config import ROOT
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QComboBox, QGroupBox, QLabel, QVBoxLayout, QWidget, QFormLayout, QLineEdit, QPushButton, QFileDialog, QCheckBox, QDoubleSpinBox, QSpinBox, QToolBox
+from PySide6.QtWidgets import QComboBox, QGroupBox, QLabel, QVBoxLayout, QWidget, QFormLayout, QLineEdit, QPushButton, QFileDialog, QCheckBox, QDoubleSpinBox, QSpinBox, QStackedWidget
 from app.core.models import Project
 
 
@@ -25,15 +25,27 @@ class SettingsPanel(QWidget):
         hint = QLabel("Chọn engine rồi bấm READ IMAGE để đọc lại ảnh.")
         hint.setWordWrap(True)
         ocr_layout.addWidget(hint)
-        self.sections = QToolBox()
+        self.sections = QComboBox()
+        self.pages = QStackedWidget()
         layout.addWidget(self.sections)
-        self.sections.addItem(ocr_box,"OCR")
+        layout.addWidget(self.pages)
+        self.sections.currentIndexChanged.connect(self.pages.setCurrentIndex)
+        self.sections.addItem("OCR")
+        self.pages.addWidget(ocr_box)
+        ocr_layout.addStretch()
         self.controls = {}
         self.labels = {}
         def section(title):
             box = QGroupBox(title)
             form = QFormLayout(box)
-            self.sections.addItem(box,title)
+            self.sections.addItem(title)
+            page = QWidget()
+            page_layout = QVBoxLayout(page)
+            page_layout.setContentsMargins(0,0,0,0)
+            page_layout.addWidget(box)
+            page_layout.addStretch()
+            self.pages.addWidget(page)
+            form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
             return form
         def field(form, group, key, title, kind, minimum=0, maximum=1):
             if kind == "file":

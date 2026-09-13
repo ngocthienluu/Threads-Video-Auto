@@ -174,3 +174,29 @@ class RendererTests(unittest.TestCase):
             self.assertGreater(self.frame(back,.3).getpixel((40,60))[0],220)
             mark.z_index=300;front=self.root/"front.mp4";self.renderer.render(self.project,front)
             self.assertGreater(self.frame(front,.3).getpixel((40,60))[2],220)
+
+    def test_four_comments_with_looped_music_finish(self):
+        from app.core.models import SceneType,ItemRole
+        for n in range(2):
+            item=self.manager.add_single(self.project.scenes[0].items[0].original_image_path).items[0]
+            item.audio_path=str(self.audio);item.audio_duration=7;item.tts_status="done"
+        third,fourth=self.project.scenes[2:]
+        third.scene_type=SceneType.THREAD;third.items[0].role=ItemRole.QUESTION
+        fourth.items[0].role=ItemRole.REPLY;third.items.extend(fourth.items);self.project.scenes.pop()
+        self.run_ffmpeg(["-f","lavfi","-i","sine=frequency=440:duration=7","-ar","48000",str(self.audio)])
+        self.project.music_settings.enabled=True;self.project.music_settings.file=str(self.audio)
+        self.project.music_settings.random_start=True;self.project.watermark_settings.enabled=True
+        output=self.root/"four.mp4";progress=[]
+        self.renderer.render(self.project,output,progress.append)
+        self.assertAlmostEqual(float(probe(output)["format"]["duration"]),29.1,delta=.1)
+        self.assertEqual(progress[-1],100)
+        self.assertIn(99,progress)
+
+    def test_stalled_process_is_stopped_with_clear_error(self):
+        import sys,time
+        work=self.root/"stall";work.mkdir()
+        self.renderer.stall_timeout=.2
+        start=time.monotonic()
+        with self.assertRaisesRegex(RenderError,"stopped advancing"):
+            self.renderer.encode([sys.executable,"-c","import time; time.sleep(10)"],work,1,None,None)
+        self.assertLess(time.monotonic()-start,3)

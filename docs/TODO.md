@@ -149,3 +149,12 @@ Each phase gets relevant tests, offscreen app startup, dated progress and a sepa
 - [ ] Implement synchronized media preview, replacing the explicit gameplay placeholder.
 - [ ] V2: MANUAL clip move/trim/split, waveform, keyframes and meme/SFX/text authoring/rendering.
 - [ ] Add missing-media relink and benchmark long-project memory/import latency; consider asynchronous thumbnail decoding.
+
+## User acceptance regressions (2026-09-14)
+- [x] Replace clipped QToolBox headers with a font-sized Project selector and stacked pages; retain all media/OCR controls and music-clip navigation.
+- [x] Add persisted explicit reply_body_only mode for screenshots containing only the new reply. Default cumulative overlap protection remains enabled; spelling/body edits now feed automatic TTS in reply-only mode, while manual TTS remains protected.
+- [x] Bound looping gameplay/music/still-image inputs by measured timeline duration, show validation at 99%, log composition metadata and stop/report encodes with no frame/time/byte progress for 120 seconds.
+- [x] Real four-comment export with music/watermark completed at 1080x1920 (29.1s). Both previous and updated renderers completed the synthetic reproduction; the exact user's 97% stall is not yet reproduced. Original temporary diagnostics were removed when the user cancelled.
+- [ ] Monitor recurrence of the exact 97% stall: user reports a later retry exported normally; original failure is not reproduced. Request its project/diagnostics only if it recurs.
+
+- [x] Follow-up validation: 134 tests pass; offscreen app launch exits 0; corrected Project page screenshot inspected. No paid TTS calls or edits to user media/projects.

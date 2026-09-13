@@ -1,5 +1,9 @@
 # Threads Video Studio
 
+## Reply screenshots
+
+For a Thread reply screenshot that contains only the new reply, enable **Image contains only the new reply** in **Comment / Voice**. Review spelling then updates automatic TTS. Leave this off for cumulative screenshots; manually edited TTS stays protected. Check that the question comes before its replies.
+
 ## Visual editor V1 (2026-09-14)
 
 1. Import screenshots; select a comment in **Scenes**. Use **Comment / Voice** for the existing OCR and narration controls.
@@ -57,7 +61,7 @@ Text rỗng hoặc OCR/reply chưa chắc chắn bị chặn; kiểm tra và ch�
 
 Ứng dụng desktop Windows tạo video dọc từ screenshot bình luận, gameplay và giọng đọc. **Hiện tại:** Tesseract là OCR mặc định; app tách comment/reply, chuẩn bị TTS Text và tích hợp tạo giọng ElevenLabs, cache audio và timeline theo thời lượng ffprobe. EXPORT MP4 đã được triển khai với gameplay, nhạc và watermark.
 
-Validation: **130 tests pass**, including local OCR, offscreen UI, mocked TTS, actual ffprobe and FFmpeg exports. Editor tests compare rendered MP4 pixels with Qt canvas transforms. No live ElevenLabs call or human listening review was performed for this iteration.
+Validation: **134 tests pass**, including local OCR, offscreen UI, mocked TTS, actual ffprobe and FFmpeg exports. Editor tests compare rendered MP4 pixels with Qt canvas transforms. No live ElevenLabs call or human listening review was performed for this iteration.
 
 ## Cài đặt
 

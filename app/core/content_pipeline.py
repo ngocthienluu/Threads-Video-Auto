@@ -30,7 +30,7 @@ def refresh_scene(manager, scene):
         confidence = 1.0 if item.body_text_is_manual else item.extraction_confidence
         item.new_body_text = body
         item.thread_diff_confidence = 1.0
-        if item.role == ItemRole.REPLY:
+        if item.role == ItemRole.REPLY and not item.reply_body_only:
             previous_ready = previous and previous.ocr_status != "error" and (previous.body_text_is_manual or
                              previous.extraction_confidence >= cfg.threads_min_confidence)
             diff = extract_new_thread_text(previous.full_body_text if previous_ready else "", body, cfg)

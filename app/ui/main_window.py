@@ -131,6 +131,7 @@ class MainWindow(QMainWindow):
         self.scenes.selected.connect(self.select)
         self.editor.ocr_edited.connect(self.edit_ocr)
         self.editor.body_edited.connect(self.edit_body)
+        self.editor.reply_mode_changed.connect(self.edit_reply_mode)
         self.editor.tts_edited.connect(self.edit_tts)
         self.editor.clean_requested.connect(self.clean_text)
         self.editor.cleaner_changed.connect(self.set_cleaner)
@@ -184,6 +185,12 @@ class MainWindow(QMainWindow):
         self.preview.set_image(item.original_image_path if item else "")
         if hasattr(self,"visual_editor"): self.visual_editor.select_item(item)
         self.add_reply_button.setEnabled(scene is not None and scene.scene_type == SceneType.THREAD)
+
+    def edit_reply_mode(self,enabled):
+        if self.item:
+            self.manager.set_reply_body_only(self.item,enabled)
+            self.editor.set_item(self.item,self.manager.project.cleaner_settings)
+            self.update_title()
 
     def edit_body(self, text):
         if self.item:

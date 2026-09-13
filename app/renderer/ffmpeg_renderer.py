@@ -19,7 +19,8 @@ from app.renderer.editor_compositor import prepare_overlay, RenderOverlay
 log = logging.getLogger(__name__)
 
 class FFmpegRenderer:
-    def __init__(self, temp_root=ROOT / "cache/temp", ffmpeg=None, ffprobe=None, timeout=3600):
+    def __init__(self, temp_root=ROOT / "cache/temp", ffmpeg=None, ffprobe=None, timeout=3600, stall_timeout=120):
+        self.stall_timeout = stall_timeout
         self.temp_root = Path(temp_root)
         self.ffmpeg, self.ffprobe, self.timeout = ffmpeg, ffprobe, timeout
 
@@ -92,7 +93,7 @@ class FFmpegRenderer:
                     if settings.loop: args.extend(["-stream_loop", "-1"])
                     available = duration if settings.loop else max(0, duration-total) if is_background else duration
                     offset = random.uniform(0, max(0, available-.05)) if settings.random_start else 0
-                    args.extend(["-ss", f"{offset:.6f}", "-i", str(path)])
+                    args.extend(["-ss", f"{offset:.6f}", "-t", f"{total:.6f}", "-i", str(path)])
                 input_media(background, project.background_settings, duration, True)
                 overlays=[]
                 comments={o.source_item_id:o for o in project.editor_objects if o.type==ObjectType.COMMENT_IMAGE}
@@ -107,7 +108,7 @@ class FFmpegRenderer:
                         image_path=work/f"image{n}.png";image.save(image_path)
                     except (OSError,ValueError):
                         raise RenderError(f"Cannot prepare screenshot {n+1}.") from None
-                    args.extend(["-loop", "1", "-framerate", str(v.fps), "-i", str(image_path), "-i", str(Path(item.audio_path).resolve())])
+                    args.extend(["-loop", "1", "-framerate", str(v.fps), "-t", f"{total:.6f}", "-i", str(image_path), "-i", str(Path(item.audio_path).resolve())])
                 index = 1 + 2*len(items)
                 music_index = index if music else None
                 if music:
@@ -120,7 +121,7 @@ class FFmpegRenderer:
                         image,x,y=prepare_overlay(project,mark_obj);image.save(mark)
                     except (OSError,ValueError):
                         raise RenderError("Watermark font unavailable. Select a valid font or disable watermark.") from None
-                    args.extend(["-loop","1","-framerate",str(v.fps),"-i",str(mark)])
+                    args.extend(["-loop","1","-framerate",str(v.fps),"-t",f"{total:.6f}","-i",str(mark)])
                     overlays.append(RenderOverlay(index,x,y,mark_obj.start_time,mark_obj.end_time,mark_obj.z_index))
                 graph = work / "filters.txt"
                 graph.write_text(build_filter_graph(project,timeline,music_index,background_audio=bg_audio,overlays=overlays),encoding="utf-8")
@@ -129,7 +130,9 @@ class FFmpegRenderer:
                 args.extend(["-/filter_complex", str(graph), "-map", "[vout]", "-map", "[aout]", "-t", f"{total:.6f}",
                              "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-threads", "2", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart",
                              "-progress", str(work / "progress.txt"), str(temporary_output)])
+                log.info("Export: %d comments, %.3fs, %dx%d, music=%s",len(items),total,v.width,v.height,bool(music))
                 self.encode(args, work, total, progress, cancel)
+                if progress: progress(99)
                 result = probe(temporary_output, cancel, ffprobe)
                 if not all(any(s.get("codec_type") == kind for s in result["streams"]) for kind in ("audio", "video")) or abs(float(result["format"]["duration"])-total) > max(.25, 2/v.fps):
                     raise RenderError("Encoded output failed stream/duration validation.")
@@ -153,16 +156,25 @@ class FFmpegRenderer:
         with (work / "stderr.txt").open("wb") as errors:
             process = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=errors, creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
             start = time.monotonic()
+            last_advance = start
+            last_marker = None
             try:
                 while process.poll() is None:
                     check_cancel(cancel)
                     if time.monotonic()-start > self.timeout:
                         raise RenderError("Export timed out. Try a shorter project.")
-                    if progress and (work / "progress.txt").exists():
+                    if (work / "progress.txt").exists():
                         text = (work / "progress.txt").read_text(errors="replace")
+                        fields=dict(line.split("=",1) for line in text.splitlines() if "=" in line)
+                        marker=tuple(fields.get(key) for key in ("frame","out_time_us","total_size"))
+                        if marker != last_marker:
+                            last_marker=marker;last_advance=time.monotonic()
                         values = [line.split("=",1)[1] for line in text.splitlines() if line.startswith("out_time_us=")]
-                        if values and values[-1].isdigit():
+                        if progress and values and values[-1].isdigit():
                             progress(min(98, 5+int(int(values[-1])/1e6/total*93)))
+                    if time.monotonic()-last_advance > self.stall_timeout:
+                        log.error("FFmpeg stalled: frame/time/bytes=%s",last_marker)
+                        raise RenderError(f"FFmpeg stopped advancing for {self.stall_timeout:g} seconds. Export was stopped; previous output was kept. Check logs/app.log.")
                     time.sleep(.1)
             finally:
                 if process.poll() is None:

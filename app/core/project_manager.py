@@ -66,6 +66,12 @@ class ProjectManager:
             refresh_scene(self, next(scene for scene in self.project.scenes if item in scene.items))
             self.changed()
 
+    def set_reply_body_only(self,item,enabled):
+        if item.role != ItemRole.REPLY:return
+        item.reply_body_only=bool(enabled)
+        self.refresh_content(item)
+        self.changed()
+
     def apply_detection(self, item, ocr, extraction, replace_body=False):
         from app.core.content_pipeline import apply_detection
         apply_detection(self, item, ocr, extraction, replace_body)

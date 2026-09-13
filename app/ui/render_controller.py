@@ -39,10 +39,16 @@ class RenderController(QObject):
         def operation(progress,status):
             return self.renderer.render(self.snapshot,Path(output),progress,self.cancel_event,overwrite=True)
         self.worker = Worker(operation,expected_errors=(RenderError,ValueError,OSError))
-        self.worker.signals.progress.connect(w.progress.setValue)
+        self.worker.signals.progress.connect(self.progress)
         self.worker.signals.error.connect(self.error)
         self.worker.signals.finished.connect(self.finish)
         QThreadPool.globalInstance().start(self.worker)
+
+    @Slot(int)
+    def progress(self,value):
+        self.window.progress.setValue(value)
+        if not self.cancel_event.is_set():
+            self.window.statusBar().showMessage("Validating encoded MP4..." if value == 99 else "Encoding video and mixing audio..." if value >= 5 else "Checking media...")
 
     @Slot(str)
     def error(self,message):self.failure = message

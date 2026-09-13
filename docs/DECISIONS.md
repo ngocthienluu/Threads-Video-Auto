@@ -194,3 +194,9 @@ Status: Accepted and implemented.
 Context: Independent visual transforms or decorative timeline blocks would misrepresent export.
 Decision: Add persisted EditorObject records linked to SceneItems. Derive AUTO clip records and object visibility intervals from measured narration. Treat end times as exclusive; prevent free clip moves/trims in AUTO. Save deletion tombstones so removed overlays are not recreated, while preserving their narration. All geometry commands modify the same model that export snapshots.
 Consequences: Additive schema-1 loading migrates old projects, but older app versions may reject newly saved fields. Undo history stays session-only. Manual timing, additional visual types, waveform and synchronized playback require later implementation, with no fake active controls now.
+
+## ADR-023: Explicit reply-only screenshots and finite export inputs
+Date: 2026-09-14
+Context: User screenshots can contain independent replies rather than cumulative thread context; automatic prefix matching then correctly withholds narration. A multi-layer export was also reported stalled near completion.
+Decision: Persist an opt-in reply_body_only flag instead of guessing that unrelated text is a reply. Preserve cumulative/manual-TTS safeguards. Bound looped FFmpeg inputs by measured duration and add progress-stall diagnostics/watchdog. Replace clipped toolbox navigation with selector/stacked settings pages.
+Consequences: Reply-only content requires explicit user confirmation; legacy projects remain cumulative. Synthetic multi-comment exports pass, but the exact reported stall still requires its project/media reproduction. No new dependencies.
