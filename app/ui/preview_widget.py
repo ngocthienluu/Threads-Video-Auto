@@ -1,11 +1,34 @@
 """Graphics canvas. Project objects, never widget pixels, own all geometry."""
 from dataclasses import asdict
-from PySide6.QtCore import QRectF, Qt, Signal
+from PySide6.QtCore import QRectF, Qt, Signal, QPointF
 from PySide6.QtGui import QColor, QPainter, QPixmap, QImage, QPen
-from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsObject, QGraphicsItem
+from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsObject, QGraphicsItem, QGraphicsRectItem
 from app.core.config import VideoSettings
 from app.core.editor_objects import ObjectType
 from app.core.editor_scene import object_image
+from app.core.editor_geometry import resize_corner, snap_position
+
+class ResizeHandle(QGraphicsRectItem):
+    def __init__(self,parent,corner):
+        super().__init__(-5,-5,10,10,parent)
+        self.corner=corner
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
+        self.setBrush(QColor("#579cff"));self.setPen(QPen(QColor("white")))
+        self.setCursor(Qt.CursorShape.SizeFDiagCursor if corner in (0,3) else Qt.CursorShape.SizeBDiagCursor)
+        self.setZValue(10000)
+    def mousePressEvent(self,event):
+        self.before=asdict(self.parentItem().model);event.accept()
+    def mouseMoveEvent(self,event):
+        parent=self.parentItem()
+        if parent.model.locked:return
+        values=resize_corner(self.before,self.corner,event.scenePos().x(),event.scenePos().y())
+        parent.prepareGeometryChange()
+        for key,value in values.items():setattr(parent.model,key,value)
+        parent.refresh();parent.canvas.object_changed.emit(parent.model.id);event.accept()
+    def mouseReleaseEvent(self,event):
+        parent=self.parentItem()
+        if self.before != asdict(parent.model):parent.canvas.gesture_finished.emit(parent.model.id,self.before,asdict(parent.model))
+        event.accept()
 
 class CanvasObject(QGraphicsObject):
     def __init__(self, canvas, model, pixmap):
@@ -13,6 +36,7 @@ class CanvasObject(QGraphicsObject):
         self.canvas,self.model,self.pixmap = canvas,model,pixmap
         self.loading = False
         self.before = None
+        self.handles=[ResizeHandle(self,n) for n in range(4)]
         self.setFlags(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable | QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges)
         self.refresh()
 
@@ -29,7 +53,13 @@ class CanvasObject(QGraphicsObject):
         self.setZValue(self.model.z_index)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable,not self.model.locked)
         self.loading = False
+        self.update_handles()
         self.update()
+
+    def update_handles(self):
+        r=self.boundingRect()
+        for handle,pos in zip(self.handles,(r.topLeft(),r.topRight(),r.bottomLeft(),r.bottomRight())):
+            handle.setPos(pos);handle.setVisible(self.isSelected() and not self.model.locked and self.model.type != ObjectType.BACKGROUND)
 
     def paint(self,painter,option,widget=None):
         rect = self.boundingRect()
@@ -46,6 +76,13 @@ class CanvasObject(QGraphicsObject):
             painter.setPen(pen);painter.setBrush(Qt.BrushStyle.NoBrush);painter.drawRect(rect)
 
     def itemChange(self,change,value):
+        if change == QGraphicsItem.GraphicsItemChange.ItemSelectedHasChanged:
+            self.update_handles()
+        if change == QGraphicsItem.GraphicsItemChange.ItemPositionChange and not self.loading and self.canvas.project and self.canvas.project.snap_enabled and self.model.rotation == 0:
+            r=self.boundingRect()
+            x,y,guides=snap_position(value.x(),value.y(),r.width(),r.height(),self.canvas.project.snap_threshold)
+            self.canvas.guides=guides;self.canvas.viewport().update()
+            return QPointF(x,y)
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged and not self.loading:
             self.model.x,self.model.y = value.x(),value.y()
             self.canvas.object_changed.emit(self.model.id)
@@ -60,6 +97,7 @@ class CanvasObject(QGraphicsObject):
         if self.before and self.before != asdict(self.model):
             self.canvas.gesture_finished.emit(self.model.id,self.before,asdict(self.model))
         self.before = None
+        self.canvas.guides=[];self.canvas.viewport().update()
 
 class PreviewWidget(QGraphicsView):
     selected = Signal(str)
@@ -75,6 +113,7 @@ class PreviewWidget(QGraphicsView):
         self.settings = VideoSettings()
         self.pixmap = QPixmap()
         self.project = None
+        self.guides=[]
         self.objects = {}
         self.cache = {}
         self.scene().selectionChanged.connect(self._selected)
@@ -117,9 +156,19 @@ class PreviewWidget(QGraphicsView):
         if not self.project:return
         for item in self.objects.values():
             obj=item.model
-            active = obj.active_at(time) if ready else obj.visible and (not obj.source_item_id or obj.source_item_id == authoring_item)
+            active = obj.active_at(time) if ready else obj.visible and not obj.deleted and (not obj.source_item_id or obj.source_item_id == authoring_item)
             if obj.type == ObjectType.WATERMARK: active = active and self.project.watermark_settings.enabled
             item.setVisible(active)
+
+    def drawForeground(self,painter,rect):
+        if not self.project:return
+        pen=QPen(QColor("#668bb9"),1,Qt.PenStyle.DashLine);pen.setCosmetic(True)
+        painter.setPen(pen);painter.setBrush(Qt.BrushStyle.NoBrush)
+        if self.project.show_safe_area:painter.drawRect(QRectF(70,160,870,1480))
+        pen.setColor(QColor("#ac79ff"));painter.setPen(pen)
+        for axis,value in self.guides:
+            if axis=="x":painter.drawLine(QPointF(value,0),QPointF(value,1920))
+            else:painter.drawLine(QPointF(0,value),QPointF(1080,value))
 
     def fit(self):
         self.fitInView(self.sceneRect(),Qt.AspectRatioMode.KeepAspectRatio)

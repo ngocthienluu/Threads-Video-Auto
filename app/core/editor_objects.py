@@ -30,6 +30,7 @@ class EditorObject:
     opacity: float = 1.0
     z_index: int = 100
     visible: bool = True
+    deleted: bool = False
     locked: bool = False
     start_time: float = 0.0
     end_time: float = 0.0
@@ -48,4 +49,4 @@ class EditorObject:
             raise ValueError("Object size exceeds 8192 logical pixels.")
 
     def active_at(self, seconds):
-        return self.visible and self.start_time <= seconds < self.end_time
+        return self.visible and not self.deleted and self.start_time <= seconds < self.end_time

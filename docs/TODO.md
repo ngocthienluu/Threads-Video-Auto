@@ -134,3 +134,5 @@ Each phase gets relevant tests, offscreen app startup, dated progress and a sepa
 - [x] Phase A: resizable dark shell, scene thumbnails/filter, inspector/layers hosts and compact Project sections. Validation: 22 UI tests pass; offscreen app smoke exits 0. Functional object bindings follow in B/C.
 
 - [x] Phase B: additive EditorObject schema, legacy defaults, 1080x1920 QGraphicsScene, selectable/movable cached comment and watermark. Model mutation tested independently of viewport size. 26 editor/UI tests pass; offscreen startup exits 0. Background currently an explicitly labelled export-only placeholder.
+
+- [x] Phase C: four proportional resize handles, minimum size, snap guides/safe area, transform/style binding, layer visibility/lock/z-order, overlay deletion tombstones and QUndoStack. Background geometry stays locked; deleting an overlay preserves narration. 29 editor/UI tests pass; offscreen startup exits 0.
