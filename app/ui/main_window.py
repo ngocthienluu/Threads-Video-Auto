@@ -8,6 +8,7 @@ from app.core.project_manager import ProjectManager
 from app.core.models import SceneType
 from app.ui.comment_editor import CommentEditor
 from app.ui.preview_widget import PreviewWidget
+from app.ui.editor_controller import EditorController
 from app.ui.scene_list import SceneList
 from app.ui.settings_panel import SettingsPanel
 from app.ui.ocr_controller import OCRController
@@ -133,6 +134,7 @@ class MainWindow(QMainWindow):
         self.editor.tts_edited.connect(self.edit_tts)
         self.editor.clean_requested.connect(self.clean_text)
         self.editor.cleaner_changed.connect(self.set_cleaner)
+        self.visual_editor = EditorController(self)
         self.refresh()
 
     @staticmethod
@@ -151,6 +153,9 @@ class MainWindow(QMainWindow):
         QMessageBox.warning(self, "Unable to complete action", str(message))
 
     def refresh(self, select_id=None):
+        from app.core.editor_scene import ensure_objects
+        ensure_objects(self.manager.project)
+        if hasattr(self,"visual_editor"): self.visual_editor.refresh(self.manager.refresh_timeline())
         self.scenes.populate(self.manager.project, select_id)
         self.settings.set_project(self.manager.project)
         self.preview.settings = self.manager.project.video_settings
@@ -160,6 +165,7 @@ class MainWindow(QMainWindow):
         timeline = self.manager.refresh_timeline()
         self.timeline_label.setText(f"Timeline: {len(timeline.segments)} items · {timeline.total_duration:.2f}s" if timeline else
                                     "Timeline pending — generate measured audio for every item")
+        if hasattr(self,"visual_editor"): self.visual_editor.refresh(timeline)
         name = self.manager.path.stem if self.manager.path else self.manager.project.name
         self.project_title.setText(name + (" *" if self.manager.dirty else ""))
         self.setWindowTitle(f"{'* ' if self.manager.dirty else ''}{name} — Threads Video Studio")
@@ -175,6 +181,7 @@ class MainWindow(QMainWindow):
         self.tts_controller.sync_project()
         self.editor.set_item(item, self.manager.project.cleaner_settings)
         self.preview.set_image(item.original_image_path if item else "")
+        if hasattr(self,"visual_editor"): self.visual_editor.select_item(item)
         self.add_reply_button.setEnabled(scene is not None and scene.scene_type == SceneType.THREAD)
 
     def edit_body(self, text):
@@ -264,7 +271,8 @@ class MainWindow(QMainWindow):
 
     def preview_selected(self):
         self.preview.set_image(self.item.original_image_path if self.item else "")
-        self.statusBar().showMessage("Static image only. Gameplay, audio and final composition are not implemented.")
+        self.canvas_tabs.setCurrentIndex(0)
+        self.statusBar().showMessage("Layout preview; gameplay and audio are composed on Export.")
 
     def use_selection(self, text, overwrite):
         if self.item:

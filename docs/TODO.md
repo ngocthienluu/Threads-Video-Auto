@@ -132,3 +132,5 @@ F: Renderer reads the same logical transforms; real render regression and final 
 Each phase gets relevant tests, offscreen app startup, dated progress and a separate local commit. No live TTS calls or automatic GitHub push. Realtime gameplay playback, trim/split/manual clip timing and keyframes remain future scope.
 
 - [x] Phase A: resizable dark shell, scene thumbnails/filter, inspector/layers hosts and compact Project sections. Validation: 22 UI tests pass; offscreen app smoke exits 0. Functional object bindings follow in B/C.
+
+- [x] Phase B: additive EditorObject schema, legacy defaults, 1080x1920 QGraphicsScene, selectable/movable cached comment and watermark. Model mutation tested independently of viewport size. 26 editor/UI tests pass; offscreen startup exits 0. Background currently an explicitly labelled export-only placeholder.

@@ -8,6 +8,7 @@ from typing import get_args, get_origin, get_type_hints
 from uuid import uuid4
 from copy import deepcopy
 from app.core.ocr_models import OCRResult
+from app.core.editor_objects import EditorObject
 
 from app.core.config import (BackgroundSettings, CleanerSettings, MusicSettings,
                              TimingSettings, VideoSettings, WatermarkSettings, ExtractionSettings)
@@ -105,6 +106,10 @@ class Scene:
 
 @dataclass
 class Project:
+    editor_objects: list[EditorObject] = field(default_factory=list)
+    snap_enabled: bool = True
+    snap_threshold: float = 12.0
+    show_safe_area: bool = False
     schema_version: int = 1
     id: str = field(default_factory=new_id)
     name: str = "Untitled"
@@ -180,6 +185,13 @@ class Project:
                     item.ocr_result.validate()
                 if item.ocr_status not in {"pending", "done", "manual", "error"} or item.tts_status not in {"pending", "done", "error"} or item.timeline_status not in {"pending", "done"}:
                     raise ValueError("Invalid item status.")
+        for obj in self.editor_objects:
+            obj.validate()
+            if not obj.id or obj.id in ids:
+                raise ValueError("Object IDs must be unique.")
+            ids.add(obj.id)
+        if not 0 <= self.snap_threshold <= 100:
+            raise ValueError("Invalid snap threshold.")
         v = self.video_settings
         cfg = self.extraction_settings
         if not (0 <= cfg.threads_body_left_ratio < cfg.threads_body_right_ratio <= 1 and
